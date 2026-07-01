@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 
+export const dynamic = "force-dynamic";
+
 /**
  * API: /api/members
  * 

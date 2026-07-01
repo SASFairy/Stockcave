@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 // SHA-256 helper using Node.js crypto (matches the Edge-compatible version in middleware)
 function getExpectedSessionToken(pin: string): string {
   const secret = process.env.SESSION_SECRET || "dev_family_stockcave_session_secret_key";

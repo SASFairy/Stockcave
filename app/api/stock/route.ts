@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Core engine API: /api/stock
  * Query parameters: ?memberId=<number>

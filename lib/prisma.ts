@@ -14,8 +14,8 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 // This prevents database locks during concurrent reads/writes.
 async function enableWAL() {
   try {
-    await prisma.$executeRawUnsafe(`PRAGMA journal_mode=WAL;`);
-    await prisma.$executeRawUnsafe(`PRAGMA busy_timeout=5000;`);
+    await prisma.$queryRawUnsafe(`PRAGMA journal_mode=WAL;`);
+    await prisma.$queryRawUnsafe(`PRAGMA busy_timeout=5000;`);
   } catch (error) {
     console.error("Failed to enable WAL mode in SQLite:", error);
   }
