@@ -41,7 +41,14 @@ export async function GET(request: Request) {
     // 2. Iterate accounts and attempt real-time sync with Throttling
     for (const account of accounts) {
       let isSynced = false;
-      let freshBalances = [];
+      let freshBalances: {
+        ticker: string;
+        stockName: string;
+        quantity: number;
+        avgBuyPrice: number;
+        currentPrice: number;
+        currency: string;
+      }[] = [];
 
       try {
         // A. Throttling: Delay 200ms between each account to prevent API Rate Limits
