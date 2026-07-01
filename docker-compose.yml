@@ -1,0 +1,18 @@
+services:
+  stockcave:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stockcave
+    ports:
+      - "3000:3000"
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=file:/app/prisma/dev.db
+      - NODE_ENV=production
+    volumes:
+      # Mount the prisma directory on the host to persist the SQLite database file (dev.db)
+      # This allows easy backups and guarantees that family data and cached tokens survive container upgrades!
+      - ./prisma:/app/prisma

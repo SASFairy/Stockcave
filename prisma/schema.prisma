@@ -1,0 +1,73 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. 가족 구성원 테이블
+model Member {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique                      // 가족 이름 (예: "홍길동")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  accounts  Account[]
+}
+
+// 2. 증권 계좌 테이블
+model Account {
+  id          Int             @id @default(autoincrement())
+  broker      String                                          // 증권사 코드 (예: "KB", "NAMUH")
+  accountName String                                          // 계좌 별칭 (예: "국내주식용", "해외ISA")
+  appKey      String                                          // 암호화된 App Key
+  secretKey   String                                          // 암호화된 Secret Key
+  accountNo   String                                          // 계좌번호
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  memberId    Int
+  member      Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  balances    StockBalance[]
+  token       BrokerToken?
+  snapshots   AssetSnapshot[]
+}
+
+// 3. 증권사 24시간용 Access Token 캐시 테이블 (1:1 관계)
+model BrokerToken {
+  id          Int      @id @default(autoincrement())
+  accessToken String                                 // 발급된 Access Token
+  expiredAt   DateTime                               // 토큰 만료 일시
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  accountId   Int      @unique
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// 4. 실시간 주식 잔고 테이블
+model StockBalance {
+  id           Int      @id @default(autoincrement())
+  ticker       String                                    // 종목 코드 (예: "005930")
+  stockName    String                                    // 종목명 (예: "삼성전자")
+  quantity     Int                                       // 보유 수량
+  avgBuyPrice  Float                                     // 매입 단가
+  currentPrice Float                                     // 실시간 현재가
+  currency     String   @default("KRW")                  // 통화 구분 (기본값: 원화)
+  updatedAt    DateTime @updatedAt
+  accountId    Int
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, ticker]) // 한 계좌 내 종목 중복 방지
+}
+
+// 5. [추가] 일별 자산 누적 스냅샷 테이블 (향후 자산 누적 추이 그래프 및 시계열 데이터 차트용)
+model AssetSnapshot {
+  id        Int      @id @default(autoincrement())
+  date      String   // 일자 형식: "YYYY-MM-DD"
+  netWorth  Float    // 당일 평가금액 총합
+  createdAt DateTime @default(now())
+  accountId Int
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date]) // 계좌별로 하루에 한 개의 스냅샷만 유지
+}
