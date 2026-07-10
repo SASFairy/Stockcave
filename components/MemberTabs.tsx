@@ -41,7 +41,7 @@ export default function MemberTabs({ members, activeMemberId, onChange, isLoadin
             {/* Soft micro-animation dot */}
             {isActive && (
               <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-cyan-400/50 blur-[2px]"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-400"></span>
               </span>
             )}

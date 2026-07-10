@@ -1,0 +1,36 @@
+# 1. 의존성 패키지 (가장 중요: 수백 MB의 호스트 node_modules 카피 원천 차단)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 2. Next.js 및 개발 캐시 (로컬 임시 빌드 결과물 제외)
+.next
+out
+build
+
+# 3. 로컬 SQLite 데이터베이스 및 보안 자산 파일 (보안 누출 및 캐시 무력화 방지)
+prisma/*.db
+prisma/*.db-journal
+prisma/family.json
+!prisma/schema.prisma
+!prisma/family.example.json
+
+# 4. 버전 관리 및 에디터 임시 설정 폴더 (수만 개의 미세 파일 전송 차단)
+.git
+.gitignore
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# 5. 로컬 환경 변수 파일 (인프라 독립성 및 API Key 보안 유지)
+.env
+.env*.local
+
+# 6. 맥/윈도우 시스템 임시 파일
+Thumbs.db
+.DS_Store
