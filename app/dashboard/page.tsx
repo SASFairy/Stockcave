@@ -30,7 +30,6 @@ export default function DashboardPage() {
   const [addTicker, setAddTicker] = useState("");
   const [addStockName, setAddStockName] = useState("");
   const [addQuantity, setAddQuantity] = useState("");
-  const [addAvgBuyPrice, setAddAvgBuyPrice] = useState("");
   const [addCurrency, setAddCurrency] = useState("KRW");
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
@@ -38,7 +37,6 @@ export default function DashboardPage() {
   // Form states - Edit
   const [editingItem, setEditingItem] = useState<StockBalanceItem | null>(null);
   const [editQuantity, setEditQuantity] = useState("");
-  const [editAvgBuyPrice, setEditAvgBuyPrice] = useState("");
   const [editError, setEditError] = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
@@ -139,7 +137,6 @@ export default function DashboardPage() {
           ticker: addTicker,
           stockName: addStockName,
           quantity: parseInt(addQuantity, 10),
-          avgBuyPrice: parseFloat(addAvgBuyPrice),
           currency: addCurrency,
         }),
       });
@@ -150,7 +147,6 @@ export default function DashboardPage() {
         setAddTicker("");
         setAddStockName("");
         setAddQuantity("");
-        setAddAvgBuyPrice("");
         setAddCurrency("KRW");
         setIsAddModalOpen(false);
         // Refresh account balances
@@ -179,7 +175,6 @@ export default function DashboardPage() {
         body: JSON.stringify({
           id: editingItem.id,
           quantity: parseInt(editQuantity, 10),
-          avgBuyPrice: parseFloat(editAvgBuyPrice),
         }),
       });
 
@@ -225,7 +220,6 @@ export default function DashboardPage() {
   const triggerEditModal = (item: StockBalanceItem) => {
     setEditingItem(item);
     setEditQuantity(item.quantity.toString());
-    setEditAvgBuyPrice(item.avgBuyPrice.toString());
     setEditError("");
     setIsEditModalOpen(true);
   };
@@ -360,7 +354,7 @@ export default function DashboardPage() {
             </h2>
             {isEditMode && (
               <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
-                관리 모드 가동 중: 종목을 추가하거나 편하게 매입가/수량을 수정해 보세요!
+                관리 모드 가동 중: 종목을 추가하거나 보유 수량을 편리하게 조절해 보세요!
               </span>
             )}
           </div>
@@ -442,38 +436,20 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="addQuantity" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
-                    보유 수량
-                  </label>
-                  <input
-                    type="number"
-                    id="addQuantity"
-                    required
-                    min="1"
-                    placeholder="수량"
-                    value={addQuantity}
-                    onChange={(e) => setAddQuantity(e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="addAvgBuyPrice" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
-                    매입 평단가
-                  </label>
-                  <input
-                    type="number"
-                    id="addAvgBuyPrice"
-                    required
-                    min="0"
-                    step="any"
-                    placeholder="단가"
-                    value={addAvgBuyPrice}
-                    onChange={(e) => setAddAvgBuyPrice(e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
-                  />
-                </div>
+              <div>
+                <label htmlFor="addQuantity" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                  보유 수량
+                </label>
+                <input
+                  type="number"
+                  id="addQuantity"
+                  required
+                  min="1"
+                  placeholder="수량 입력"
+                  value={addQuantity}
+                  onChange={(e) => setAddQuantity(e.target.value)}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
+                />
               </div>
 
               {addError && <p className="text-xs font-semibold text-red-400 text-center">{addError}</p>}
@@ -505,9 +481,9 @@ export default function DashboardPage() {
       {isEditModalOpen && editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
           <div className="w-full max-w-md p-6 rounded-2xl glass-panel border border-white/10 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-black text-white tracking-wide mb-2">⚙️ 보유 주식 수량 및 단가 변경</h3>
+            <h3 className="text-lg font-black text-white tracking-wide mb-2">⚙️ 보유 주식 수량 변경</h3>
             <p className="text-xs text-muted font-semibold mb-4">
-              {editingItem.stockName} ({editingItem.ticker}) 종목의 잔고 장부를 수정합니다.
+              {editingItem.stockName} ({editingItem.ticker}) 종목의 잔고 보유 수량을 수정합니다.
             </p>
 
             <form onSubmit={handleEditStockSubmit} className="space-y-4">
@@ -522,22 +498,6 @@ export default function DashboardPage() {
                   min="1"
                   value={editQuantity}
                   onChange={(e) => setEditQuantity(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="editAvgBuyPrice" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
-                  매입 평단가 ({editingItem.currency})
-                </label>
-                <input
-                  type="number"
-                  id="editAvgBuyPrice"
-                  required
-                  min="0"
-                  step="any"
-                  value={editAvgBuyPrice}
-                  onChange={(e) => setEditAvgBuyPrice(e.target.value)}
                   className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
                 />
               </div>
@@ -573,7 +533,7 @@ export default function DashboardPage() {
           ========================================================================= */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
-          <div className="w-full max-w-sm p-6 rounded-2xl glass-panel border border-red-500/10 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-sm p-6 rounded-2xl glass-panel border border-red-500/10 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-black text-red-400 tracking-wide mb-2 flex items-center gap-2">
               🚨 종목 삭제 확인
             </h3>

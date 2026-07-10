@@ -53,9 +53,9 @@ async function fetchPublicPrice(ticker: string, currency: string): Promise<numbe
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { accountId, ticker, stockName, quantity, avgBuyPrice, currency = "KRW" } = body;
+    const { accountId, ticker, stockName, quantity, currency = "KRW" } = body;
 
-    if (!accountId || !ticker || !stockName || quantity === undefined || avgBuyPrice === undefined) {
+    if (!accountId || !ticker || !stockName || quantity === undefined) {
       return NextResponse.json({ success: false, error: "필수 정보가 누락되었습니다." }, { status: 400 });
     }
 
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
         ticker: cleanTicker,
         stockName: stockName.trim(),
         quantity: parseInt(quantity, 10),
-        avgBuyPrice: parseFloat(avgBuyPrice),
-        currentPrice: currentPrice || parseFloat(avgBuyPrice), // fallback to purchase price if lookup fails
+        avgBuyPrice: 0.0, // average buy price is defaulted to 0 since we removed it
+        currentPrice: currentPrice || 0.0,
         currency,
       }
     });
@@ -93,14 +93,14 @@ export async function POST(request: Request) {
 }
 
 /**
- * PUT: Edit an existing holding (quantity, avgBuyPrice)
+ * PUT: Edit an existing holding (quantity only)
  */
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, quantity, avgBuyPrice } = body;
+    const { id, quantity } = body;
 
-    if (!id || quantity === undefined || avgBuyPrice === undefined) {
+    if (!id || quantity === undefined) {
       return NextResponse.json({ success: false, error: "필수 수정 정보가 누락되었습니다." }, { status: 400 });
     }
 
@@ -108,7 +108,6 @@ export async function PUT(request: Request) {
       where: { id: parseInt(id, 10) },
       data: {
         quantity: parseInt(quantity, 10),
-        avgBuyPrice: parseFloat(avgBuyPrice),
       }
     });
 

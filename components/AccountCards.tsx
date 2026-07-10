@@ -46,9 +46,8 @@ export default function AccountCards({ accounts, activeAccountId, onChange, isLo
     );
   }
 
-  // Calculate account stats
+  // Calculate account stats (total valuation only)
   const getAccountStats = (account: AccountItem) => {
-    let totalBuy = 0;
     let totalCurrent = 0;
 
     for (const item of account.balances) {
@@ -56,18 +55,11 @@ export default function AccountCards({ accounts, activeAccountId, onChange, isLo
       if (item.currency === "USD") {
         exchangeRate = 1380; // Standard fallback exchange rate for USD
       }
-
-      totalBuy += item.quantity * item.avgBuyPrice * exchangeRate;
       totalCurrent += item.quantity * item.currentPrice * exchangeRate;
     }
 
-    const profitValue = totalCurrent - totalBuy;
-    const profitRate = totalBuy > 0 ? (profitValue / totalBuy) * 100 : 0;
-
     return {
       totalCurrent,
-      profitValue,
-      profitRate,
     };
   };
 
@@ -75,7 +67,7 @@ export default function AccountCards({ accounts, activeAccountId, onChange, isLo
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {accounts.map((account) => {
         const isActive = account.accountId === activeAccountId;
-        const { totalCurrent, profitValue, profitRate } = getAccountStats(account);
+        const { totalCurrent } = getAccountStats(account);
 
         return (
           <div
@@ -118,16 +110,6 @@ export default function AccountCards({ accounts, activeAccountId, onChange, isLo
               <div className="flex items-baseline justify-between">
                 <span className="text-xl font-extrabold text-white tracking-tight">
                   ₩{Math.round(totalCurrent).toLocaleString()}
-                </span>
-                <span
-                  className={`text-xs font-bold font-mono px-2 py-0.5 rounded-lg ${
-                    profitValue >= 0
-                      ? "text-emerald-400 bg-emerald-500/10"
-                      : "text-red-400 bg-red-500/10"
-                  }`}
-                >
-                  {profitValue >= 0 ? "+" : ""}
-                  {profitRate.toFixed(2)}%
                 </span>
               </div>
             </div>

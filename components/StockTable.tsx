@@ -44,10 +44,8 @@ export default function StockTable({
             <tr className="border-b border-border bg-black/25">
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted">종목</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">보유량</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">매입단가</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">현재가</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">평가금액</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">수익률 / 평가손익</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">실시간 현재가</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">총 평가금액</th>
               {isEditMode && (
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-center">관리</th>
               )}
@@ -57,7 +55,7 @@ export default function StockTable({
             {balances.length === 0 ? (
               <tr>
                 <td
-                  colSpan={isEditMode ? 7 : 6}
+                  colSpan={isEditMode ? 5 : 4}
                   className="p-12 text-center text-muted text-sm"
                 >
                   보유 주식 잔고가 존재하지 않습니다. {isEditMode && "새로운 종목을 추가해 보세요!"}
@@ -66,10 +64,6 @@ export default function StockTable({
             ) : (
               balances.map((item) => {
                 const valuation = item.quantity * item.currentPrice;
-                const buyValue = item.quantity * item.avgBuyPrice;
-                const pnl = valuation - buyValue;
-                const returnRate = item.avgBuyPrice > 0 ? (pnl / buyValue) * 100 : 0;
-                const isPositive = pnl >= 0;
 
                 return (
                   <tr
@@ -94,31 +88,14 @@ export default function StockTable({
                       {item.quantity.toLocaleString()}
                     </td>
 
-                    {/* Avg Buy Price */}
-                    <td className="px-6 py-4 text-right font-medium font-mono text-muted">
-                      {formatCurrency(item.avgBuyPrice, item.currency)}
-                    </td>
-
                     {/* Current Price */}
-                    <td className="px-6 py-4 text-right font-semibold font-mono text-white">
+                    <td className="px-6 py-4 text-right font-semibold font-mono text-indigo-300">
                       {formatCurrency(item.currentPrice, item.currency)}
                     </td>
 
                     {/* Total Valuation */}
                     <td className="px-6 py-4 text-right font-extrabold font-mono text-white">
                       {formatCurrency(valuation, item.currency)}
-                    </td>
-
-                    {/* Return % and Profit & Loss */}
-                    <td className="px-6 py-4 text-right">
-                      <div className={`text-sm font-extrabold font-mono ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
-                        {isPositive ? "+" : ""}
-                        {returnRate.toFixed(2)}%
-                      </div>
-                      <div className={`text-xs font-mono font-medium mt-0.5 ${isPositive ? "text-emerald-400/75" : "text-red-400/75"}`}>
-                        {isPositive ? "+" : ""}
-                        {formatCurrency(pnl, item.currency)}
-                      </div>
                     </td>
 
                     {/* Manage Buttons (Pencil and Trash) */}
@@ -130,7 +107,7 @@ export default function StockTable({
                             type="button"
                             onClick={() => onEdit?.(item)}
                             className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition-all cursor-pointer active:scale-90"
-                            title="수정"
+                            title="수량 수정"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                               <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
