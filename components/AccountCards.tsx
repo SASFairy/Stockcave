@@ -79,18 +79,6 @@ export default function AccountCards({ accounts, activeAccountId, onChange, isLo
                 : "border-border"
             }`}
           >
-            {/* Sync Badge */}
-            <span className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/5 border border-white/5">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  account.synced
-                    ? "bg-emerald-400 animate-pulse"
-                    : "bg-amber-400"
-                }`}
-              />
-              {account.synced ? "Synced" : "Offline Cache"}
-            </span>
-
             {/* Broker & Account Info */}
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-1">
