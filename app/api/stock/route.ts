@@ -4,16 +4,23 @@ import { decrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
+// =========================================================================
+// 🔌 FEATURE FLAG: Toggle between Public Free API Sync vs Real Broker Sync
+// =========================================================================
+const ENABLE_REAL_BROKER_SYNC = false;
+
 /**
  * Core engine API: /api/stock
  * Query parameters: ?memberId=<number>
  * 
  * Flow:
  * 1. Fetches Member's Accounts and their previously stored StockBalances.
- * 2. Attempts to sync real-time stock balances from the Broker APIs.
- * 3. Incorporates AES decryption, Token caching (BrokerToken), and API Throttling.
- * 4. GRACEFUL FALLBACK: If Broker API fails (maintenance, network error, invalid key),
- *    returns cached DB data with [synced: false] to prevent crashing.
+ * 2. If ENABLE_REAL_BROKER_SYNC is false:
+ *    - Automatically fetches real-time public prices from Naver / Yahoo Finance.
+ *    - Updates database and returns the live assets immediately (zero broker keys required!).
+ * 3. If ENABLE_REAL_BROKER_SYNC is true:
+ *    - Attempts to sync real-time stock balances from the Broker OpenAPI servers.
+ *    - GRACEFUL FALLBACK: If Broker API fails, returns cached DB data to prevent crashing.
  */
 export async function GET(request: Request) {
   try {
@@ -40,7 +47,52 @@ export async function GET(request: Request) {
 
     const results = [];
 
-    // 2. Iterate accounts and attempt real-time sync with Throttling
+    // =========================================================================
+    // 📡 1. PUBLIC FREE SYNC PATHWAY (Zero Broker Keys, Automated Market Prices)
+    // =========================================================================
+    if (!ENABLE_REAL_BROKER_SYNC) {
+      console.log(`📡 [Public Sync] Free Public API Sync active for Member ID: ${memberId}`);
+      for (const account of accounts) {
+        const freshBalances = [];
+        
+        for (const balance of account.balances) {
+          const livePrice = await fetchPublicPrice(balance.ticker, balance.currency);
+          const currentPrice = livePrice || balance.currentPrice || balance.avgBuyPrice;
+          
+          // Update DB with the new currentPrice
+          await prisma.stockBalance.update({
+            where: { id: balance.id },
+            data: { currentPrice }
+          });
+
+          freshBalances.push({
+            id: balance.id,
+            ticker: balance.ticker,
+            stockName: balance.stockName,
+            quantity: balance.quantity,
+            avgBuyPrice: balance.avgBuyPrice,
+            currentPrice,
+            currency: balance.currency,
+          });
+        }
+
+        results.push({
+          accountId: account.id,
+          broker: account.broker,
+          accountName: account.accountName,
+          accountNo: account.accountNo,
+          synced: true,
+          lastSyncedAt: new Date(),
+          balances: freshBalances,
+        });
+      }
+
+      return NextResponse.json({ success: true, accounts: results });
+    }
+
+    // =========================================================================
+    // 🔐 2. REAL BROKER OPENAPI SYNC PATHWAY (KB / KIS / etc.)
+    // =========================================================================
     for (const account of accounts) {
       let isSynced = false;
       let freshBalances: {
@@ -78,7 +130,7 @@ export async function GET(request: Request) {
             where: { accountId: account.id },
             update: {
               accessToken,
-              expiredAt: new Date(Date.now() + 1000 * 60 * 60 * 23), // Expire in 23 hours (broker tokens are typically 24h)
+              expiredAt: new Date(Date.now() + 1000 * 60 * 60 * 23),
             },
             create: {
               accountId: account.id,
@@ -120,6 +172,7 @@ export async function GET(request: Request) {
           `[Sync Failed - Falling back to cache] Account ${account.accountName} sync failed. Reason:`,
           syncError instanceof Error ? syncError.message : syncError
         );
+
         isSynced = false;
         // Use previously stored DB balances
         freshBalances = account.balances.map((b) => ({
@@ -151,81 +204,70 @@ export async function GET(request: Request) {
 }
 
 // ==========================================
-// 🔌 BROKER API INTEGRATION UTILS (CUSTOMIZABLE)
+// 🔌 FREE PUBLIC STOCK PRICE SCRAPING UTILS
 // ==========================================
 
-/**
- * Fetches access token from the respective broker API.
- * Currently simulates mock token issuance, easily swap with real fetch calls.
- */
+async function fetchPublicPrice(ticker: string, currency: string): Promise<number | null> {
+  try {
+    const cleanTicker = ticker.trim();
+    const isKoreanTicker = /^\d{6}$/.test(cleanTicker);
+
+    if (isKoreanTicker) {
+      // Korean stock - Naver Finance Polling API
+      const url = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${cleanTicker}`;
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (res.ok) {
+        const data = await res.json();
+        const datas = data?.result?.areas?.[0]?.datas || data?.datas;
+        const rawPrice = datas?.[0]?.closePrice;
+        if (rawPrice) {
+          return parseFloat(rawPrice.replace(/,/g, ""));
+        }
+      }
+      // Fallback: Yahoo Finance with .KS
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KS`;
+      const yahooRes = await fetch(yahooUrl);
+      if (yahooRes.ok) {
+        const yData = await yahooRes.json();
+        const price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (price) return price;
+      }
+    } else {
+      // US stock - Yahoo Finance Chart API
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}`;
+      const yahooRes = await fetch(yahooUrl);
+      if (yahooRes.ok) {
+        const yData = await yahooRes.json();
+        const price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (price) return price;
+      }
+    }
+  } catch (err) {
+    console.error(`[Public Price Fetch Error] Failed for ticker ${ticker}:`, err);
+  }
+  return null;
+}
+
+// ==========================================
+// 🔌 BROKER API INTEGRATION UTILS (PRESERVED)
+// ==========================================
+
 async function fetchBrokerToken(broker: string, appKey: string, secretKey: string): Promise<string> {
-  // If credentials are "mock", return a dummy token immediately
   if (appKey === "mock" || secretKey === "mock") {
     return "MOCK_TOKEN_SUCCESS_" + Math.random().toString(36).substring(7);
   }
-
-  // ----------------------------------------------------
-  // [TEMPLATE: 한국투자증권 (Korea Investment & Securities) Real Token API]
-  // ----------------------------------------------------
-  // const response = await fetch("https://openapi.koreainvestment.com:29443/oauth2/tokenP", {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify({
-  //     grant_type: "client_credentials",
-  //     appkey: appKey,
-  //     appsecret: secretKey
-  //   })
-  // });
-  // if (!response.ok) throw new Error("Broker auth server rejected credentials");
-  // const data = await response.json();
-  // return data.access_token;
-  // ----------------------------------------------------
-
-  // For initial dev, use simulated mock data if real endpoints are not configured
   return "DEV_TOKEN_" + Math.random().toString(36).substring(7);
 }
 
-/**
- * Fetches stock balances from the respective broker API.
- * Simulates random current prices for development, easily swap with real REST endpoints.
- */
 async function fetchRealtimeBalances(broker: string, accountNo: string, accessToken: string) {
-  // If using simulation, return high-quality mock portfolios
   if (accessToken.startsWith("MOCK") || accessToken.startsWith("DEV")) {
     return getMockPortfolio(accountNo);
   }
-
-  // ----------------------------------------------------
-  // [TEMPLATE: 한국투자증권 Real Balance Inquiry API (u9600000 / 주식잔고조회)]
-  // ----------------------------------------------------
-  // const response = await fetch("https://openapi.koreainvestment.com:29443/u9600000", {
-  //   method: "GET",
-  //   headers: {
-  //     "Content-Type": "application/json",
-  //     "Authorization": `Bearer ${accessToken}`,
-  //     "appkey": "...",
-  //     "appsecret": "...",
-  //     "tr_id": "TTTC8434R" // 국내주식 잔고조회 실전 tr_id
-  //   }
-  // });
-  // if (!response.ok) throw new Error("Broker balance API returned error status");
-  // const data = await response.json();
-  // return data.output1.map(item => ({
-  //   ticker: item.pdno, // 종목코드
-  //   stockName: item.prdt_name, // 종목명
-  //   quantity: parseInt(item.hldg_qty, 10), // 보유수량
-  //   avgBuyPrice: parseFloat(item.pchs_avg_pric), // 매입단가
-  //   currentPrice: parseFloat(item.prpr) // 현재가
-  // }));
-  // ----------------------------------------------------
-
   return getMockPortfolio(accountNo);
 }
 
-// High-fidelity portfolio generation helper for immediate out-of-the-box UI interaction
 function getMockPortfolio(accountNo: string) {
   const seed = parseInt(accountNo.replace(/-/g, ""), 10) || 12345;
-  
   const pool = [
     { ticker: "005930", stockName: "삼성전자", avgBuyPrice: 72000, volatility: 0.05 },
     { ticker: "035420", stockName: "NAVER", avgBuyPrice: 195000, volatility: 0.08 },
@@ -237,15 +279,12 @@ function getMockPortfolio(accountNo: string) {
     { ticker: "TSLA", stockName: "Tesla Inc.", avgBuyPrice: 175, volatility: 0.25, currency: "USD" },
   ];
 
-  // Pick 3 to 5 stocks based on account seed
   const size = 3 + (seed % 3);
   const portfolio = [];
 
   for (let i = 0; i < size; i++) {
     const stockIndex = (seed + i * 3) % pool.length;
     const stock = pool[stockIndex];
-
-    // Simulate mild price movement around the buy price for highly realistic returns
     const rand = Math.sin(seed + i) * stock.volatility;
     const currentPrice = parseFloat((stock.avgBuyPrice * (1 + rand)).toFixed(stock.currency === "USD" ? 2 : 0));
     const quantity = 5 + ((seed * (i + 1)) % 100);

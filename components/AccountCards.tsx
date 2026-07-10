@@ -1,6 +1,7 @@
 "use client";
 
 export interface StockBalanceItem {
+  id?: number;
   ticker: string;
   stockName: string;
   quantity: number;
