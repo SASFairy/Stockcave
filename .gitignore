@@ -44,3 +44,6 @@ dev.db
 dev.db-journal
 dev.db-shm
 dev.db-wal
+
+# family secret JSON config
+prisma/family.json
