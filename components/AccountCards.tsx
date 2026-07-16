@@ -8,6 +8,7 @@ export interface StockBalanceItem {
   avgBuyPrice: number;
   currentPrice: number;
   currency: string;
+  fluctuationRate?: number; // 📈 Live daily price change percentage
 }
 
 export interface AccountItem {
@@ -107,10 +108,10 @@ export default function AccountCards({
           <div
             key={account.accountId}
             onClick={() => onChange(account.accountId)}
-            className={`glass-card p-5 rounded-2xl cursor-pointer relative transition-all duration-200 flex flex-col justify-between ${
+            className={`glass-card p-5 rounded-2xl cursor-pointer relative transition-all duration-300 flex flex-col justify-between ${
               isActive
-                ? "border-indigo-500/50 bg-indigo-500/5 shadow-[0_4px_25px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30"
-                : "border-border hover:bg-white/5"
+                ? "border-indigo-500/40 bg-white/70 shadow-[0_12px_30px_rgba(99,102,241,0.06)] ring-1 ring-indigo-500/20"
+                : "border-white/60 bg-white/30 hover:bg-white/55 hover:border-indigo-500/10 shadow-[0_4px_20px_rgba(0,0,0,0.01)]"
             }`}
           >
             <div>
@@ -118,14 +119,14 @@ export default function AccountCards({
               <div className="mb-4 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 border border-white/5 tracking-wider uppercase">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 tracking-wider uppercase">
                       {account.broker}
                     </span>
-                    <h3 className="text-sm font-bold text-white tracking-wide">
+                    <h3 className="text-sm font-bold text-slate-800 tracking-wide">
                       {account.accountName}
                     </h3>
                   </div>
-                  <p className="text-xs text-muted font-mono">{account.accountNo}</p>
+                  <p className="text-xs text-slate-500 font-bold">{account.accountNo}</p>
                 </div>
 
                 {/* Edit Cash Button - Same pencil icon as stock table */}
@@ -136,7 +137,7 @@ export default function AccountCards({
                       e.stopPropagation(); // prevent card selection trigger
                       onEditCash?.(account.accountId);
                     }}
-                    className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition-all cursor-pointer active:scale-90"
+                    className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-indigo-600 transition-all cursor-pointer active:scale-90"
                     title="예수금 수정"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -148,56 +149,59 @@ export default function AccountCards({
 
               {/* 전체 자산평가 (총 평가금액) */}
               <div className="mb-5">
-                <p className="text-[11px] uppercase text-muted tracking-widest font-extrabold mb-1">총 평가 자산</p>
+                <p className="text-[11px] uppercase text-slate-500 tracking-widest font-black mb-1">총 평가 자산</p>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-4xl font-black text-white tracking-tight">
+                  <span className="text-3xl font-black text-slate-800 tracking-tight">
                     ₩{Math.round(totalCurrent).toLocaleString()}
                   </span>
                 </div>
               </div>
 
               {/* ---------------------------------------------------------------------
-                  🇰🇷 국내 자산 요약
+                  국내 자산 요약
                   --------------------------------------------------------------------- */}
-              <div className="space-y-2.5 py-4 border-t border-white/5 text-sm font-semibold text-white/90">
-                <p className="text-xs uppercase text-muted tracking-widest font-black mb-1.5">🇰🇷 국내 자산</p>
+              <div className="space-y-2 py-3 border-t border-slate-100 text-sm font-semibold text-slate-700">
+                <p className="text-[11px] uppercase text-slate-500 tracking-widest font-black mb-1.5">국내 자산</p>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted">국내 주식 평가액</span>
-                  <span className="font-mono text-white font-extrabold text-base">₩{Math.round(totalKRWStocks).toLocaleString()}</span>
+                  <span className="text-slate-500 font-bold">국내 주식 평가액</span>
+                  <span className="text-slate-800 font-black text-sm">₩{Math.round(totalKRWStocks).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted">원화 예수금</span>
-                  <span className="font-mono text-cyan-300 font-extrabold text-base">₩{Math.round(cashKRW).toLocaleString()}</span>
+                  <span className="text-slate-500 font-bold">원화 예수금</span>
+                  <span className="text-slate-800 font-black text-sm">₩{Math.round(cashKRW).toLocaleString()}</span>
                 </div>
                 {hasUSDAssets && (
-                  <div className="flex justify-between items-center pt-2.5 border-t border-white/5 text-xs text-white/60">
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100/60 text-xs text-slate-500 font-bold">
                     <span>국내 자산 합계</span>
-                    <span className="font-mono font-extrabold text-base">₩{Math.round(totalKRWStocks + cashKRW).toLocaleString()}</span>
+                    <span className="text-slate-800 font-black text-sm">₩{Math.round(totalKRWStocks + cashKRW).toLocaleString()}</span>
                   </div>
                 )}
               </div>
 
               {/* ---------------------------------------------------------------------
-                  🇺🇸 해외 자산 요약 (조건부 노출 & 완벽 레이아웃 일치)
+                  해외 자산 요약 (조건부 노출 & 완벽 레이아웃 일치)
                   --------------------------------------------------------------------- */}
               {hasUSDAssets && (
-                <div className="space-y-2.5 py-4 border-t border-white/5 text-sm font-semibold text-white/90">
-                  <p className="text-xs uppercase text-indigo-300 tracking-widest font-black mb-1.5">🇺🇸 해외 자산</p>
+                <div className="space-y-2 py-3 border-t border-slate-100 text-sm font-semibold text-slate-700">
+                  <p className="text-[11px] uppercase text-slate-500 tracking-widest font-black mb-1.5">해외 자산</p>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted">해외 주식 평가액</span>
-                    <span className="font-mono text-white font-extrabold text-base">${totalUSDStocks.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-slate-500 font-bold">해외 주식 평가액</span>
+                    <span className="text-slate-800 font-black text-sm">${totalUSDStocks.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted">달러 예수금</span>
-                    <span className="font-mono text-emerald-400 font-extrabold text-base">${cashUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-slate-500 font-bold">달러 예수금</span>
+                    <span className="text-slate-800 font-black text-sm">${cashUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between items-center pt-2.5 border-t border-white/5 text-xs text-indigo-300">
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100/60 text-xs text-slate-500 font-bold">
                     <span>해외 자산 합계</span>
-                    <span className="font-mono font-extrabold text-base">${totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-slate-800 font-black text-sm">${totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between items-center pt-2 text-xs text-muted/60 italic font-normal">
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100/60 text-sm text-slate-500 font-bold">
                     <span>원화 환산액</span>
-                    <span>₩{Math.round(totalUSD * exchangeRate).toLocaleString()} (환율 {exchangeRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}원)</span>
+                    <span className="text-slate-800 font-black text-sm">
+                      ₩{Math.round(totalUSD * exchangeRate).toLocaleString()}
+                      <span className="text-[10px] text-slate-500 font-extrabold ml-1.5">(환율 {exchangeRate.toLocaleString(undefined, { minimumFractionDigits: 0 })}원)</span>
+                    </span>
                   </div>
                 </div>
               )}

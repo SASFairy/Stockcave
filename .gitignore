@@ -51,3 +51,7 @@ prisma/family.json
 # Local documentation
 README.local.md
 
+# AI Agent Instructions
+AGENTS.md
+
+

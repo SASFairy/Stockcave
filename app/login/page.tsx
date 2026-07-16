@@ -55,22 +55,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-indigo-500/10 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-[300px] h-[300px] rounded-full bg-cyan-500/5 blur-[100px] pointer-events-none" />
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-50/50 relative overflow-hidden">
+      {/* Pure CSS Slow-Floating Ambient Aurora Background Circles */}
+      <div className="aurora-bg">
+        <div className="aurora-circle aurora-circle-1" />
+        <div className="aurora-circle aurora-circle-2" />
+        <div className="aurora-circle aurora-circle-3" />
+        <div className="aurora-circle aurora-circle-4" />
+      </div>
 
       {/* Main glass card */}
-      <div className="w-full max-w-sm p-8 rounded-2xl glass-panel shadow-2xl relative z-10 border border-border">
+      <div className="w-full max-w-sm p-8 rounded-3xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500/10 text-primary border border-indigo-500/20 mb-3">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 mb-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth={1.5}
+              strokeWidth={2}
               stroke="currentColor"
-              className="w-7 h-7 animate-pulse text-indigo-400"
+              className="w-6 h-6 animate-pulse"
             >
               <path
                 strokeLinecap="round"
@@ -79,10 +83,10 @@ export default function LoginPage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-indigo-200 to-cyan-200 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-black tracking-tight text-slate-800">
             Stockcave Portal
           </h1>
-          <p className="text-xs text-muted mt-2">가족 전용 보안 PIN 번호를 입력해 주세요.</p>
+          <p className="text-xs text-slate-500 font-bold mt-2">가족 전용 보안 PIN 번호를 입력해 주세요.</p>
         </div>
 
         {/* PIN Indicators */}
@@ -90,10 +94,10 @@ export default function LoginPage() {
           {[0, 1, 2, 3].map((index) => (
             <div
               key={index}
-              className={`w-4 h-4 rounded-full border border-border transition-all duration-300 ${
+              className={`w-3.5 h-3.5 rounded-full border transition-all duration-300 ${
                 index < pin.length
-                  ? "bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.5)] border-indigo-400"
-                  : "bg-black/20"
+                  ? "bg-indigo-600 border-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)]"
+                  : "bg-slate-100 border-slate-200"
               }`}
             />
           ))}
@@ -101,27 +105,27 @@ export default function LoginPage() {
 
         {/* Error message */}
         {error && (
-          <div className="text-center text-xs text-danger font-medium mb-6 bg-red-500/10 border border-red-500/20 p-2 rounded-lg animate-shake">
+          <div className="text-center text-xs text-rose-600 font-bold mb-6 bg-rose-50 border border-rose-100 p-2.5 rounded-xl animate-shake">
             {error}
           </div>
         )}
 
         {/* Loading state indicator */}
         {loading && (
-          <div className="text-center text-xs text-indigo-400 font-medium mb-6 animate-pulse">
+          <div className="text-center text-xs text-indigo-600 font-bold mb-6 animate-pulse">
             PIN 인증 처리 중...
           </div>
         )}
 
         {/* Custom Virtual Keypad */}
-        <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
+        <div className="grid grid-cols-3 gap-3.5 max-w-[280px] mx-auto">
           {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
             <button
               key={num}
               type="button"
               disabled={loading}
               onClick={() => handleKeyPress(num)}
-              className="h-14 rounded-xl text-lg font-semibold bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 active:scale-95 transition-all text-white flex items-center justify-center cursor-pointer disabled:opacity-50"
+              className="h-14 rounded-2xl text-lg font-extrabold bg-white/60 border border-slate-200/60 hover:bg-white hover:border-indigo-500/20 active:scale-95 transition-all text-slate-800 flex items-center justify-center cursor-pointer disabled:opacity-50 shadow-[0_2px_8px_rgba(0,0,0,0.01)]"
             >
               {num}
             </button>
@@ -130,7 +134,7 @@ export default function LoginPage() {
             type="button"
             disabled={loading}
             onClick={handleClear}
-            className="h-14 rounded-xl text-xs font-semibold bg-red-500/10 border border-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all text-red-400 flex items-center justify-center cursor-pointer disabled:opacity-50"
+            className="h-14 rounded-2xl text-xs font-extrabold bg-rose-50 border border-rose-100/60 hover:bg-rose-100 active:scale-95 transition-all text-rose-600 flex items-center justify-center cursor-pointer disabled:opacity-50 shadow-[0_2px_8px_rgba(0,0,0,0.01)]"
           >
             CLEAR
           </button>
@@ -138,18 +142,18 @@ export default function LoginPage() {
             type="button"
             disabled={loading}
             onClick={() => handleKeyPress("0")}
-            className="h-14 rounded-xl text-lg font-semibold bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 active:scale-95 transition-all text-white flex items-center justify-center cursor-pointer disabled:opacity-50"
+            className="h-14 rounded-2xl text-lg font-extrabold bg-white/60 border border-slate-200/60 hover:bg-white hover:border-indigo-500/20 active:scale-95 transition-all text-slate-800 flex items-center justify-center cursor-pointer disabled:opacity-50 shadow-[0_2px_8px_rgba(0,0,0,0.01)]"
           >
             0
           </button>
-          <div className="h-14 rounded-xl flex items-center justify-center text-muted/30">
+          <div className="h-14 rounded-2xl flex items-center justify-center text-slate-300">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth={1.5}
+              strokeWidth={2.5}
               stroke="currentColor"
-              className="w-5 h-5"
+              className="w-5 h-5 text-slate-500"
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
             </svg>

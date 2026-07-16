@@ -1,63 +1,141 @@
+@import url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/nanumsquare.css');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Premium Dark Theme Default Palette (Obsidian & Indigo Glass) */
-  --background: #090d16;
-  --foreground: #f3f4f6;
+  /* Warm-White Pure-CSS Slow Breathing Aurora Default Palette */
+  --background: #f9f9ff;
+  --foreground: #1e293b; /* Slate-800 for pristine readability */
   
-  --card: #111827;
-  --card-foreground: #f9fafb;
+  --card: rgba(255, 255, 255, 0.4);
+  --card-foreground: #1e293b;
   
-  --primary: #6366f1; /* Vibrant Indigo */
-  --primary-hover: #4f46e5;
+  --primary: #4f46e5; /* Premium Indigo */
+  --primary-hover: #4338ca;
   
-  --border: rgba(255, 255, 255, 0.08);
-  --accent: #22d3ee; /* Electric Cyan */
+  --border: rgba(255, 255, 255, 0.5); /* Crystal White border for pristine glassmorphism */
+  --accent: #06b6d4; /* Faint Cyan */
   
   --success: #10b981; /* Emerald Green */
   --danger: #ef4444;  /* Rose Red */
-  --muted: #9ca3af;   /* Soft Gray */
+  --muted: #334155;   /* Slate-700 Gray for premium readable secondary text */
   
-  --radius: 12px;
+  --radius: 16px;
 }
 
 body {
   color: var(--foreground);
   background-color: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(34, 211, 238, 0.03) 0px, transparent 50%);
-  background-attachment: fixed;
+  font-family: 'NanumSquare', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif !important;
   min-height: 100vh;
 }
 
-/* Glassmorphism utility classes */
+/* ---------------------------------------------------------------------
+   🌀 PURE CSS SLOW BREATHING AURORA BACKGROUND (0% CPU/BATTERY OVERHEAD)
+   --------------------------------------------------------------------- */
+@keyframes float-aurora-1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(50px, -80px) scale(1.1); }
+  66% { transform: translate(-40px, 50px) scale(0.9); }
+}
+@keyframes float-aurora-2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(-60px, 50px) scale(0.95); }
+  66% { transform: translate(50px, -60px) scale(1.05); }
+}
+@keyframes float-aurora-3 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(60px, 60px) scale(1.1); }
+}
+
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -10;
+  background-color: #f9f9fc;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aurora-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.16; /* Pristine pastel translucency */
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  transition: all 1s ease;
+}
+
+.aurora-circle-1 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #fdf2f2 0%, transparent 70%); /* Pale Rose */
+  top: -100px;
+  left: -100px;
+  animation: float-aurora-1 120s infinite ease-in-out;
+}
+
+.aurora-circle-2 {
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, #fffbeb 0%, transparent 70%); /* Warm Cream */
+  bottom: -150px;
+  right: -100px;
+  animation: float-aurora-2 140s infinite ease-in-out;
+}
+
+.aurora-circle-3 {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, #f5f3ff 0%, transparent 70%); /* Faded Lavender */
+  top: 35%;
+  left: 25%;
+  animation: float-aurora-3 160s infinite ease-in-out;
+}
+
+.aurora-circle-4 {
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, #ecfeff 0%, transparent 70%); /* Mint / Light Ice */
+  top: 15%;
+  right: 10%;
+  animation: float-aurora-1 130s infinite ease-in-out;
+}
+
+/* ---------------------------------------------------------------------
+   🔮 PRISTINE CRYSTAL-CLEAR GLASSMORPHISM (Tailored for Light Theme)
+   --------------------------------------------------------------------- */
 .glass-panel {
-  background: rgba(17, 24, 39, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.02);
 }
 
 .glass-card {
-  background: rgba(21, 28, 44, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.01);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
   transform: translateY(-2px);
-  background: rgba(21, 28, 44, 0.8);
+  background: rgba(255, 255, 255, 0.55);
   border-color: rgba(99, 102, 241, 0.25);
-  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 24px -5px rgba(99, 102, 241, 0.08);
 }
 
-/* Customized scrollbar for high-end look */
+/* Customized scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -68,12 +146,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(99, 102, 241, 0.1);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(99, 102, 241, 0.25);
 }
 
 /* Hide number input spinners */

@@ -22,9 +22,9 @@ export default function StockTable({
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <div className="h-10 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
-        <div className="h-24 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
-        <div className="h-24 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
+        <div className="h-10 bg-white/30 border border-white/60 rounded-xl animate-pulse" />
+        <div className="h-24 bg-white/20 border border-white/50 rounded-xl animate-pulse" />
+        <div className="h-24 bg-white/20 border border-white/50 rounded-xl animate-pulse" />
       </div>
     );
   }
@@ -38,25 +38,25 @@ export default function StockTable({
 
   return (
     <div className="space-y-4">
-      <div className="w-full overflow-x-auto rounded-2xl border border-border bg-white/5 scrollbar-thin">
+      <div className="w-full overflow-x-auto rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md scrollbar-thin shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-border bg-black/25">
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted">종목</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">보유량</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">실시간 현재가</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-right">총 평가금액</th>
+            <tr className="border-b border-slate-100 bg-slate-50/50">
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500">종목</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right">보유량</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right">실시간 현재가</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right">총 평가금액</th>
               {isEditMode && (
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted text-center">관리</th>
+                <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-center">관리</th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/50">
+          <tbody className="divide-y divide-slate-100">
             {balances.length === 0 ? (
               <tr>
                 <td
                   colSpan={isEditMode ? 5 : 4}
-                  className="p-12 text-center text-muted text-sm"
+                  className="p-12 text-center text-slate-500 text-sm font-bold"
                 >
                   보유 주식 잔고가 존재하지 않습니다. {isEditMode && "새로운 종목을 추가해 보세요!"}
                 </td>
@@ -68,14 +68,14 @@ export default function StockTable({
                 return (
                   <tr
                     key={item.ticker}
-                    className="hover:bg-white/5 transition-colors duration-200"
+                    className="hover:bg-white/40 transition-colors duration-200"
                   >
                     {/* Stock Name & Ticker */}
                     <td className="px-6 py-4">
-                      <div className="font-bold text-white tracking-wide">{item.stockName}</div>
-                      <div className="text-xs font-mono font-bold text-muted flex items-center gap-1.5 mt-0.5">
+                      <div className="font-bold text-slate-800 tracking-wide">{item.stockName}</div>
+                      <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 mt-1">
                         {item.currency === "USD" && (
-                          <span className="text-[9px] px-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-black uppercase">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100 font-black uppercase">
                             US
                           </span>
                         )}
@@ -84,17 +84,35 @@ export default function StockTable({
                     </td>
 
                     {/* Quantity */}
-                    <td className="px-6 py-4 text-right font-semibold font-mono text-white">
+                    <td className="px-6 py-4 text-right font-extrabold text-slate-700">
                       {item.quantity.toLocaleString()}
                     </td>
 
-                    {/* Current Price */}
-                    <td className="px-6 py-4 text-right font-semibold font-mono text-indigo-300">
-                      {formatCurrency(item.currentPrice, item.currency)}
+                    {/* Current Price & Daily Change Rate */}
+                    <td className="px-6 py-4 text-right">
+                      <div className="font-extrabold text-slate-800">
+                        {formatCurrency(item.currentPrice, item.currency)}
+                      </div>
+                      {item.fluctuationRate !== undefined && item.fluctuationRate !== null && item.fluctuationRate !== 0 && (
+                        <div className={`text-[10px] font-bold mt-0.5 flex items-center justify-end gap-0.5 ${
+                          item.fluctuationRate > 0
+                            ? "text-rose-500"
+                            : item.fluctuationRate < 0
+                              ? "text-blue-500"
+                              : "text-slate-500"
+                        }`}>
+                          <span>
+                            {item.fluctuationRate > 0 ? "▲" : item.fluctuationRate < 0 ? "▼" : ""}
+                          </span>
+                          <span>
+                            {Math.abs(item.fluctuationRate).toFixed(2)}%
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     {/* Total Valuation */}
-                    <td className="px-6 py-4 text-right font-extrabold font-mono text-white">
+                    <td className="px-6 py-4 text-right font-black text-slate-800">
                       {formatCurrency(valuation, item.currency)}
                     </td>
 
@@ -106,7 +124,7 @@ export default function StockTable({
                           <button
                             type="button"
                             onClick={() => onEdit?.(item)}
-                            className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition-all cursor-pointer active:scale-90"
+                            className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-indigo-600 transition-all cursor-pointer active:scale-90"
                             title="수량 수정"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -118,7 +136,7 @@ export default function StockTable({
                           <button
                             type="button"
                             onClick={() => item.id && onDelete?.(item.id)}
-                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 text-red-400 hover:text-red-300 transition-all cursor-pointer active:scale-90"
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 transition-all cursor-pointer active:scale-90"
                             title="삭제"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -141,9 +159,9 @@ export default function StockTable({
           <button
             type="button"
             onClick={onAdd}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/20 transition-all hover:border-indigo-500/30 cursor-pointer active:scale-95 text-xs shadow-lg shadow-indigo-500/5"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 text-xs"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             새로운 종목 추가

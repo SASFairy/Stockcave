@@ -71,8 +71,9 @@ export async function GET(request: Request) {
         const freshBalances = [];
         
         for (const balance of account.balances) {
-          const livePrice = await fetchPublicPrice(balance.ticker, balance.currency);
-          const currentPrice = livePrice || balance.currentPrice || balance.avgBuyPrice;
+          const liveData = await fetchPublicPrice(balance.ticker, balance.currency);
+          const currentPrice = liveData?.price || balance.currentPrice || balance.avgBuyPrice;
+          const fluctuationRate = liveData?.fluctuationRate || 0;
           
           // Update DB with the new currentPrice
           await prisma.stockBalance.update({
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
             avgBuyPrice: balance.avgBuyPrice,
             currentPrice,
             currency: balance.currency,
+            fluctuationRate,
           });
         }
 
@@ -226,7 +228,7 @@ export async function GET(request: Request) {
 // 🔌 FREE PUBLIC STOCK PRICE SCRAPING UTILS
 // ==========================================
 
-async function fetchPublicPrice(ticker: string, currency: string): Promise<number | null> {
+async function fetchPublicPrice(ticker: string, currency: string): Promise<{ price: number; fluctuationRate: number } | null> {
   try {
     const cleanTicker = ticker.trim();
     const isKoreanTicker = /^\d{6}$/.test(cleanTicker);
@@ -240,7 +242,20 @@ async function fetchPublicPrice(ticker: string, currency: string): Promise<numbe
         const datas = data?.result?.areas?.[0]?.datas || data?.datas;
         const rawPrice = datas?.[0]?.closePrice;
         if (rawPrice) {
-          return parseFloat(rawPrice.replace(/,/g, ""));
+          const price = parseFloat(rawPrice.replace(/,/g, ""));
+          const rawRatio = datas?.[0]?.fluctuationsRatio;
+          const isRising = datas?.[0]?.compareToPreviousCloseState?.name === "RISING" || datas?.[0]?.compareToPreviousCloseState?.name === "UPPER_LIMIT";
+          const isFalling = datas?.[0]?.compareToPreviousCloseState?.name === "FALLING" || datas?.[0]?.compareToPreviousCloseState?.name === "LOWER_LIMIT";
+          let fluctuationRate = 0;
+          if (rawRatio) {
+            fluctuationRate = parseFloat(rawRatio);
+            if (isFalling) {
+              fluctuationRate = -Math.abs(fluctuationRate);
+            } else if (isRising) {
+              fluctuationRate = Math.abs(fluctuationRate);
+            }
+          }
+          return { price, fluctuationRate };
         }
       }
       // Fallback: Yahoo Finance with .KS
@@ -249,7 +264,12 @@ async function fetchPublicPrice(ticker: string, currency: string): Promise<numbe
       if (yahooRes.ok) {
         const yData = await yahooRes.json();
         const price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (price) return price;
+        const prevClose = yData?.chart?.result?.[0]?.meta?.chartPreviousClose || yData?.chart?.result?.[0]?.meta?.previousClose;
+        let fluctuationRate = 0;
+        if (price && prevClose) {
+          fluctuationRate = ((price - prevClose) / prevClose) * 100;
+        }
+        if (price) return { price, fluctuationRate };
       }
     } else {
       // US stock - Yahoo Finance Chart API
@@ -258,7 +278,12 @@ async function fetchPublicPrice(ticker: string, currency: string): Promise<numbe
       if (yahooRes.ok) {
         const yData = await yahooRes.json();
         const price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (price) return price;
+        const prevClose = yData?.chart?.result?.[0]?.meta?.chartPreviousClose || yData?.chart?.result?.[0]?.meta?.previousClose;
+        let fluctuationRate = 0;
+        if (price && prevClose) {
+          fluctuationRate = ((price - prevClose) / prevClose) * 100;
+        }
+        if (price) return { price, fluctuationRate };
       }
     }
   } catch (err) {
