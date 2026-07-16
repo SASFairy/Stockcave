@@ -353,7 +353,7 @@ export default function DashboardPage() {
   const activeMemberName = members.find((m) => m.id === activeMemberId)?.name || "";
 
   return (
-    <div className="min-h-screen p-6 md:p-8 max-w-7xl mx-auto space-y-8 relative">
+    <div className="min-h-screen max-w-[1400px] mx-auto p-4 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 relative">
       {/* Pure CSS Slow-Floating Ambient Aurora Background Circles */}
       <div className="aurora-bg">
         <div className="aurora-circle aurora-circle-1" />
@@ -362,39 +362,40 @@ export default function DashboardPage() {
         <div className="aurora-circle aurora-circle-4" />
       </div>
 
-      {/* Header Panel */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl glass-panel relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-5 h-5 animate-pulse"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M2.25 18 9 11.25l4.306 4.307a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
-              />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-800 tracking-wide">
+      {/* =========================================================================
+          💎 LEFT SIDEBAR (LOGO, FAMILY GROUPS, CONTROLS)
+          ========================================================================= */}
+      <aside className="w-full md:w-64 shrink-0 flex flex-col gap-6 relative z-10">
+        {/* Logo & Settings Box */}
+        <div className="p-5 rounded-2xl glass-panel flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-8.5 h-8.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2.5}
+                stroke="currentColor"
+                className="w-4 h-4 animate-pulse"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 18 9 11.25l4.306 4.307a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
+                />
+              </svg>
+            </div>
+            <h1 className="text-lg font-black text-slate-800 tracking-wide">
               Stockcave
             </h1>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5">
           {/* Edit Mode Toggle Switch */}
           <button
             type="button"
             onClick={() => setIsEditMode(!isEditMode)}
             title={isEditMode ? "관리 모드 종료" : "장부 관리 모드 시작"}
-            className={`w-9 h-9 rounded-xl border transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
+            className={`w-8.5 h-8.5 rounded-xl border transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
               isEditMode
                 ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10"
                 : "bg-white/60 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white"
@@ -420,31 +421,96 @@ export default function DashboardPage() {
               />
             </svg>
           </button>
-
-          {/* Logout button */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="h-9 px-4 text-xs font-bold rounded-xl bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-600 cursor-pointer active:scale-95 transition-all flex items-center justify-center"
-          >
-            로그아웃
-          </button>
         </div>
-      </header>
 
-      {/* Main Dashboard section */}
-      <section className="space-y-6 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Family Groups Sidebar Selector */}
+        <div className="p-5 rounded-2xl glass-panel flex flex-col gap-4">
           <div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">가족 구성원 선택</h2>
-            <MemberTabs
-              members={members}
-              activeMemberId={activeMemberId}
-              onChange={setActiveMemberId}
-              isLoading={membersLoading}
-            />
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
+              Family Groups
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold">Manage portfolios</p>
           </div>
 
+          <nav className="flex flex-col gap-1.5">
+            {membersLoading ? (
+              <div className="space-y-2 animate-pulse">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-11 w-full bg-slate-100 rounded-xl" />
+                ))}
+              </div>
+            ) : (
+              members.map((member) => {
+                const isActive = member.id === activeMemberId;
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => setActiveMemberId(member.id)}
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-left text-xs font-black transition-all duration-300 cursor-pointer border ${
+                      isActive
+                        ? "bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm"
+                        : "bg-transparent border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                    }`}
+                  >
+                    {/* Family Avatar SVG */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={isActive ? 2.5 : 2}
+                      stroke="currentColor"
+                      className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-500"}`}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                      />
+                    </svg>
+                    <span>{member.name}</span>
+                  </button>
+                );
+              })
+            )}
+          </nav>
+        </div>
+
+        {/* Logout Button */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full py-3 text-xs font-bold rounded-2xl bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-600 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"
+            />
+          </svg>
+          로그아웃
+        </button>
+      </aside>
+
+      {/* =========================================================================
+          💎 RIGHT MAIN CONTENT CANVAS
+          ========================================================================= */}
+      <main className="flex-1 space-y-6 relative z-10 min-w-0">
+        {/* Sticky-like Info & Status Bar */}
+        <header className="p-5 rounded-2xl glass-panel flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
+              {activeMemberName && `${activeMemberName}의 `}보유 주식 실시간 잔고
+            </h2>
+          </div>
           {activeAccount && (
             <div className="text-right">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">실시간 시세 동기화</span>
@@ -453,9 +519,9 @@ export default function DashboardPage() {
               </span>
             </div>
           )}
-        </div>
+        </header>
 
-        {/* Account cards segment */}
+        {/* Account Cards */}
         <div className="space-y-4">
           <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">증권 계좌 목록</h2>
           <AccountCards
@@ -471,11 +537,6 @@ export default function DashboardPage() {
 
         {/* Stock Balances table segment */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
-              {activeMemberName && `${activeMemberName}의 `}보유 주식 실시간 잔고
-            </h2>
-          </div>
           <StockTable
             balances={activeAccount ? activeAccount.balances : []}
             isLoading={accountsLoading}
@@ -485,7 +546,7 @@ export default function DashboardPage() {
             onAdd={() => setIsAddModalOpen(true)}
           />
         </div>
-      </section>
+      </main>
 
       {/* =========================================================================
           💎 GLASSMORPHIC MODAL - ADD STOCK (With Autocomplete & Manual Fallback)
