@@ -18,6 +18,9 @@ export default function DashboardPage() {
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  // REAL-TIME EXCHANGE RATE STATE
+  const [exchangeRate, setExchangeRate] = useState<number>(1380.0);
+
   // EDIT MODE STATES
   const [isEditMode, setIsEditMode] = useState(false);
   
@@ -25,6 +28,13 @@ export default function DashboardPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+
+  // Form states - Cash Management
+  const [cashKRWInput, setCashKRWInput] = useState("");
+  const [cashUSDInput, setCashUSDInput] = useState("");
+  const [cashError, setCashError] = useState("");
+  const [cashLoading, setCashLoading] = useState(false);
 
   // Form states - Add
   const [addTicker, setAddTicker] = useState("");
@@ -138,9 +148,15 @@ export default function DashboardPage() {
           synced: acc.synced,
           lastSyncedAt: acc.lastSyncedAt,
           balances: acc.balances,
+          cashKRW: acc.cashKRW || 0,
+          cashUSD: acc.cashUSD || 0,
         }));
 
         setAccounts(formattedAccounts);
+        
+        if (data.exchangeRate) {
+          setExchangeRate(data.exchangeRate);
+        }
 
         // Keep active account id if it still exists in the new list, else pick the first
         if (formattedAccounts.length > 0) {
@@ -159,6 +175,52 @@ export default function DashboardPage() {
       setSyncing(false);
     }
   }
+
+  const openCashModal = (accId?: number) => {
+    const idToUse = accId || activeAccountId;
+    const selectedAcc = accounts.find((a) => a.accountId === idToUse);
+    if (!selectedAcc) return;
+    if (accId) {
+      setActiveAccountId(accId);
+    }
+    setCashKRWInput(selectedAcc.cashKRW?.toString() || "0");
+    setCashUSDInput(selectedAcc.cashUSD?.toString() || "0");
+    setCashError("");
+    setIsCashModalOpen(true);
+  };
+
+  const handleCashSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeAccountId) return;
+
+    setCashLoading(true);
+    setCashError("");
+
+    try {
+      const response = await fetch("/api/accounts/cash", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: activeAccountId,
+          cashKRW: parseFloat(cashKRWInput) || 0,
+          cashUSD: parseFloat(cashUSDInput) || 0,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setIsCashModalOpen(false);
+        await loadAccounts();
+      } else {
+        setCashError(data.error || "예수금 업데이트에 실패했습니다.");
+      }
+    } catch (err) {
+      console.error("Failed to update cash balances:", err);
+      setCashError("서버 통신 중 오류가 발생했습니다.");
+    } finally {
+      setCashLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -317,10 +379,9 @@ export default function DashboardPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-xl font-black text-white tracking-wide flex items-center gap-2">
-              Stockcave <span className="text-[10px] bg-indigo-500/10 text-indigo-300 font-bold px-1.5 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest">v2.0</span>
+            <h1 className="text-xl font-black text-white tracking-wide">
+              Stockcave
             </h1>
-            <p className="text-[11px] text-muted font-medium mt-0.5">가족 멀티 계좌 관리 및 실시간 주식 포트폴리오 장부</p>
           </div>
         </div>
 
@@ -380,6 +441,9 @@ export default function DashboardPage() {
             activeAccountId={activeAccountId}
             onChange={setActiveAccountId}
             isLoading={accountsLoading}
+            exchangeRate={exchangeRate}
+            isEditMode={isEditMode}
+            onEditCash={openCashModal}
           />
         </div>
 
@@ -770,6 +834,87 @@ export default function DashboardPage() {
                 취소
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          💎 GLASSMORPHIC MODAL - MANAGE CASH (KRW / USD)
+          ========================================================================= */}
+      {isCashModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
+          <div className="w-full max-w-md p-6 rounded-2xl glass-panel border border-white/10 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-black text-white tracking-wide mb-2 flex items-center gap-2">
+              💰 계좌 예수금(현금 잔고) 관리
+            </h3>
+            <p className="text-xs text-muted font-semibold mb-6">
+              선택하신 증권 계좌의 원화 및 외화(달러) 예수금을 실시간 환산 자산에 반영하기 위해 안전하게 수정합니다.
+            </p>
+
+            <form onSubmit={handleCashSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="cashKRW" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                  🇰🇷 원화 예수금 (KRW)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-2.5 text-sm font-bold text-muted/80">₩</span>
+                  <input
+                    type="number"
+                    id="cashKRW"
+                    required
+                    min="0"
+                    step="1"
+                    value={cashKRWInput}
+                    onChange={(e) => setCashKRWInput(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold no-spinner"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="cashUSD" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1 flex justify-between items-center">
+                  <span>🇺🇸 달러 예수금 (USD)</span>
+                  <span className="text-[10px] text-indigo-400 font-normal italic">
+                    실시간 환율: ₩{exchangeRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-2.5 text-sm font-bold text-muted/80">$</span>
+                  <input
+                    type="number"
+                    id="cashUSD"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={cashUSDInput}
+                    onChange={(e) => setCashUSDInput(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold no-spinner"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {cashError && <p className="text-xs font-semibold text-red-400 text-center">{cashError}</p>}
+
+              <div className="flex gap-3 mt-6">
+                {/* 윈도우 컨벤션: 확인/저장 왼쪽, 취소 오른쪽 */}
+                <button
+                  type="submit"
+                  disabled={cashLoading}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20"
+                >
+                  {cashLoading ? "저장 중..." : "예수금 저장"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCashModalOpen(false)}
+                  className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 cursor-pointer active:scale-95 transition-all"
+                >
+                  취소
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

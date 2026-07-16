@@ -24,6 +24,8 @@ model Account {
   appKey      String                                          // 암호화된 App Key
   secretKey   String                                          // 암호화된 Secret Key
   accountNo   String                                          // 계좌번호
+  cashKRW     Float           @default(0.0)                   // 🇰🇷 원화 예수금 (현금 잔고)
+  cashUSD     Float           @default(0.0)                   // 🇺🇸 달러 예수금 (현금 잔고)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   memberId    Int

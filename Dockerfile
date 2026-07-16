@@ -39,16 +39,13 @@ ENV HOSTNAME "0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy essential build artifacts and dependencies from builder stage
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/next.config.mjs ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-
-# Make sure database directory has write permissions for the nextjs user
-RUN chown -R nextjs:nodejs /app
+# Copy essential build artifacts and dependencies from builder stage with correct ownership
+COPY --chown=nextjs:nodejs --from=builder /app/package*.json ./
+COPY --chown=nextjs:nodejs --from=builder /app/next.config.mjs ./
+COPY --chown=nextjs:nodejs --from=builder /app/public ./public
+COPY --chown=nextjs:nodejs --from=builder /app/.next ./.next
+COPY --chown=nextjs:nodejs --from=builder /app/node_modules ./node_modules
+COPY --chown=nextjs:nodejs --from=builder /app/prisma ./prisma
 
 USER nextjs
 

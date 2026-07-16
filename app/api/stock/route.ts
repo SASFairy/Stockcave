@@ -36,6 +36,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "유효하지 않은 memberId입니다." }, { status: 400 });
     }
 
+    // Fetch real-time USD/KRW exchange rate from Yahoo Finance
+    let exchangeRate = 1380.0; // standard fallback
+    try {
+      const exRes = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/USDKRW=X");
+      if (exRes.ok) {
+        const exData = await exRes.json();
+        const rate = exData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (rate) {
+          exchangeRate = rate;
+        }
+      }
+    } catch (err) {
+      console.error("[Exchange Rate Fetch Error] Failed to get live USDKRW rate:", err);
+    }
+
     // 1. Fetch Member, Accounts, StockBalances and cached Tokens
     const accounts = await prisma.account.findMany({
       where: { memberId },
@@ -81,13 +96,15 @@ export async function GET(request: Request) {
           broker: account.broker,
           accountName: account.accountName,
           accountNo: account.accountNo,
+          cashKRW: account.cashKRW,
+          cashUSD: account.cashUSD,
           synced: true,
           lastSyncedAt: new Date(),
           balances: freshBalances,
         });
       }
 
-      return NextResponse.json({ success: true, accounts: results });
+      return NextResponse.json({ success: true, accounts: results, exchangeRate });
     }
 
     // =========================================================================
@@ -190,13 +207,15 @@ export async function GET(request: Request) {
         broker: account.broker,
         accountName: account.accountName,
         accountNo: account.accountNo,
+        cashKRW: account.cashKRW,
+        cashUSD: account.cashUSD,
         synced: isSynced,
         lastSyncedAt: isSynced ? new Date() : account.updatedAt,
         balances: freshBalances,
       });
     }
 
-    return NextResponse.json({ success: true, accounts: results });
+    return NextResponse.json({ success: true, accounts: results, exchangeRate });
   } catch (error) {
     console.error("GET Stock API Error:", error);
     return NextResponse.json({ success: false, error: "서버 오류가 발생했습니다." }, { status: 500 });
