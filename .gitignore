@@ -47,3 +47,7 @@ dev.db-wal
 
 # family secret JSON config
 prisma/family.json
+
+# Local documentation
+README.local.md
+
