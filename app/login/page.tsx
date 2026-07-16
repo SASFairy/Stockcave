@@ -86,7 +86,7 @@ export default function LoginPage() {
           <h1 className="text-2xl font-black tracking-tight text-slate-800">
             Stockcave Portal
           </h1>
-          <p className="text-xs text-slate-500 font-bold mt-2">가족 전용 보안 PIN 번호를 입력해 주세요.</p>
+          <p className="text-xs text-slate-500 font-bold mt-2">보안 PIN 번호를 입력해 주세요.</p>
         </div>
 
         {/* PIN Indicators */}

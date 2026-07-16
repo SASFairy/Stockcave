@@ -7,10 +7,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// 1. 가족 구성원 테이블
+// 1. 구성원 테이블
 model Member {
   id        Int       @id @default(autoincrement())
-  name      String    @unique                      // 가족 이름 (예: "홍길동")
+  name      String    @unique                      // 구성원 이름 (예: "홍길동")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   accounts  Account[]
@@ -83,7 +83,7 @@ model StockMaster {
   currency    String            // "KRW" 또는 "USD"
   market      String            // "KOSPI", "KOSDAQ", "NASDAQ", "NYSE" 등 소속 시장
   priority    Int      @default(9999)  // 시가총액 우선순위 (숫자가 낮을수록 대형주, 예: 삼성전자 = 1)
-  holderCount Int      @default(0)     // 이 종목을 보유하고 있는 우리 가족 구성원(Member)의 수
+  holderCount Int      @default(0)     // 이 종목을 보유하고 있는 구성원(Member)의 수
   updatedAt   DateTime @updatedAt
 
   @@index([symbol])      // 코드 고속 서치 인덱스

@@ -3,8 +3,8 @@ import type { NextRequest } from "next/server";
 
 // Standard Web Crypto SHA-256 helper (Edge-compatible)
 async function getExpectedSessionToken(): Promise<string> {
-  const pin = process.env.FAMILY_PIN || "1234";
-  const secret = process.env.SESSION_SECRET || "dev_family_stockcave_session_secret_key";
+  const pin = process.env.GROUP_PIN || "1234";
+  const secret = process.env.SESSION_SECRET || "dev_group_stockcave_session_secret_key";
   
   const message = `${pin}:${secret}`;
   const msgBuffer = new TextEncoder().encode(message);

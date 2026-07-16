@@ -5,14 +5,14 @@ export const dynamic = "force-dynamic";
 
 // SHA-256 helper using Node.js crypto (matches the Edge-compatible version in middleware)
 function getExpectedSessionToken(pin: string): string {
-  const secret = process.env.SESSION_SECRET || "dev_family_stockcave_session_secret_key";
+  const secret = process.env.SESSION_SECRET || "dev_group_stockcave_session_secret_key";
   return crypto.createHash("sha256").update(`${pin}:${secret}`).digest("hex");
 }
 
 export async function POST(request: Request) {
   try {
     const { pin } = await request.json();
-    const correctPin = process.env.FAMILY_PIN || "1234";
+    const correctPin = process.env.GROUP_PIN || "1234";
 
     if (!pin || pin !== correctPin) {
       return NextResponse.json({ success: false, error: "잘못된 PIN 번호입니다." }, { status: 401 });

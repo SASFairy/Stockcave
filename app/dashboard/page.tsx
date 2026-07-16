@@ -29,6 +29,31 @@ export default function DashboardPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
+
+  // System Settings Unlock states (isAdminUnlocked)
+  const [isSettingsSecurityLockOpen, setIsSettingsSecurityLockOpen] = useState(false);
+  const [settingsSecurityPinInput, setSettingsSecurityPinInput] = useState("");
+  const [securityLockError, setSecurityLockError] = useState("");
+  const [securityLockLoading, setSecurityLockLoading] = useState(false);
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+
+  // Form states - Member addition
+  const [newMemberName, setNewMemberName] = useState("");
+  const [addMemberError, setAddMemberError] = useState("");
+  const [addMemberLoading, setAddMemberLoading] = useState(false);
+
+  // Form states - Account addition
+  const [newAccountBroker, setNewAccountBroker] = useState("KB증권");
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountNo, setNewAccountNo] = useState("");
+  const [newAccountAppKey, setNewAccountAppKey] = useState("");
+  const [newAccountSecretKey, setNewAccountSecretKey] = useState("");
+  const [newAccountCashKRW, setNewAccountCashKRW] = useState("");
+  const [newAccountCashUSD, setNewAccountCashUSD] = useState("");
+  const [addAccountError, setAddAccountError] = useState("");
+  const [addAccountLoading, setAddAccountLoading] = useState(false);
 
   // Form states - Cash Management
   const [cashKRWInput, setCashKRWInput] = useState("");
@@ -107,24 +132,159 @@ export default function DashboardPage() {
     };
   }, [searchQuery, isManualMode]);
 
-  // 1. Initial load: Fetch family members
-  useEffect(() => {
-    async function loadMembers() {
-      try {
-        const response = await fetch("/api/members");
-        const data = await response.json();
-        if (data.success && data.members.length > 0) {
-          setMembers(data.members);
-          setActiveMemberId(data.members[0].id); // Select first member
+  // 1. Initial load & refresh: Fetch family members
+  const loadMembers = async (selectNewId?: number) => {
+    try {
+      const response = await fetch("/api/members");
+      const data = await response.json();
+      if (data.success) {
+        setMembers(data.members);
+        if (data.members.length > 0) {
+          if (selectNewId) {
+            setActiveMemberId(selectNewId);
+          } else if (activeMemberId === null || !data.members.some((m: any) => m.id === activeMemberId)) {
+            setActiveMemberId(data.members[0].id); // Select first member
+          }
+        } else {
+          setActiveMemberId(null);
         }
-      } catch (err) {
-        console.error("Failed to load family members:", err);
-      } finally {
-        setMembersLoading(false);
       }
+    } catch (err) {
+      console.error("Failed to load family members:", err);
+    } finally {
+      setMembersLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadMembers();
   }, []);
+
+  // Family Member addition handler
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberName.trim()) {
+      setAddMemberError("이름을 입력해주세요.");
+      return;
+    }
+    setAddMemberLoading(true);
+    setAddMemberError("");
+    try {
+      const res = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newMemberName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewMemberName("");
+        setIsAddMemberModalOpen(false);
+        await loadMembers(data.member.id); // Refresh and select new member
+      } else {
+        setAddMemberError(data.error || "구성원 추가 중 오류가 발생했습니다.");
+      }
+    } catch (err) {
+      console.error(err);
+      setAddMemberError("서버 오류가 발생했습니다.");
+    } finally {
+      setAddMemberLoading(false);
+    }
+  };
+
+  // Family Member deletion handler
+  const handleDeleteMember = async (id: number, name: string) => {
+    const confirmDelete = window.confirm(`"${name}" 구성원과 해당 구성원의 모든 계좌 및 보유 주식 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`/api/members?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (activeMemberId === id) {
+          setActiveMemberId(null);
+        }
+        await loadMembers();
+      } else {
+        alert(data.error || "구성원 삭제 중 오류가 발생했습니다.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("서버 오류가 발생했습니다.");
+    }
+  };
+
+  // Broker Account addition handler
+  const handleAddAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeMemberId) return;
+    if (!newAccountBroker || !newAccountName.trim() || !newAccountNo.trim()) {
+      setAddAccountError("모든 필수 입력 필드를 채워주세요.");
+      return;
+    }
+    setAddAccountLoading(true);
+    setAddAccountError("");
+    try {
+      const res = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: activeMemberId,
+          broker: newAccountBroker,
+          accountName: newAccountName,
+          accountNo: newAccountNo,
+          appKey: newAccountAppKey,
+          secretKey: newAccountSecretKey,
+          cashKRW: newAccountCashKRW ? parseFloat(newAccountCashKRW) : 0,
+          cashUSD: newAccountCashUSD ? parseFloat(newAccountCashUSD) : 0,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewAccountBroker("KB증권");
+        setNewAccountName("");
+        setNewAccountNo("");
+        setNewAccountAppKey("");
+        setNewAccountSecretKey("");
+        setNewAccountCashKRW("");
+        setNewAccountCashUSD("");
+        setIsAddAccountModalOpen(false);
+        await loadAccounts(); // Reload accounts list
+      } else {
+        setAddAccountError(data.error || "계좌 추가 중 오류가 발생했습니다.");
+      }
+    } catch (err) {
+      console.error(err);
+      setAddAccountError("서버 오류가 발생했습니다.");
+    } finally {
+      setAddAccountLoading(false);
+    }
+  };
+
+  // Broker Account deletion handler
+  const handleDeleteAccount = async (accountId: number, name: string) => {
+    const confirmDelete = window.confirm(`"${name}" 계좌와 해당 계좌의 모든 보유 주식 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`/api/accounts?id=${accountId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (activeAccountId === accountId) {
+          setActiveAccountId(null);
+        }
+        await loadAccounts();
+      } else {
+        alert(data.error || "계좌 삭제 중 오류가 발생했습니다.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("서버 오류가 발생했습니다.");
+    }
+  };
 
   // 2. Load accounts and real-time balances when selected member changes
   useEffect(() => {
@@ -219,6 +379,35 @@ export default function DashboardPage() {
       setCashError("서버 통신 중 오류가 발생했습니다.");
     } finally {
       setCashLoading(false);
+    }
+  };
+
+  const handleSecurityLockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecurityLockLoading(true);
+    setSecurityLockError("");
+
+    try {
+      const response = await fetch("/api/auth/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: settingsSecurityPinInput }),
+      });
+
+      if (response.ok) {
+        setIsSettingsSecurityLockOpen(false);
+        setSettingsSecurityPinInput("");
+        setIsAdminUnlocked(true);
+      } else {
+        const data = await response.json();
+        setSecurityLockError(data.error || "비밀번호가 일치하지 않습니다.");
+        setSettingsSecurityPinInput("");
+      }
+    } catch (err) {
+      console.error("Settings PIN validation error:", err);
+      setSecurityLockError("서버와 통신하는 중 오류가 발생했습니다.");
+    } finally {
+      setSecurityLockLoading(false);
     }
   };
 
@@ -395,7 +584,7 @@ export default function DashboardPage() {
             type="button"
             onClick={() => setIsEditMode(!isEditMode)}
             title={isEditMode ? "관리 모드 종료" : "장부 관리 모드 시작"}
-            className={`w-8.5 h-8.5 rounded-xl border transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
+            className={`w-10 h-10 rounded-xl border transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
               isEditMode
                 ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10"
                 : "bg-white/60 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white"
@@ -407,7 +596,7 @@ export default function DashboardPage() {
               viewBox="0 0 24 24"
               strokeWidth={2}
               stroke="currentColor"
-              className={`w-4 h-4 transition-transform duration-500 ${isEditMode ? "rotate-90 text-white" : ""}`}
+              className={`w-5 h-5 transition-transform duration-500 ${isEditMode ? "rotate-90 text-white" : ""}`}
             >
               <path
                 strokeLinecap="round"
@@ -425,11 +614,31 @@ export default function DashboardPage() {
 
         {/* Family Groups Sidebar Selector */}
         <div className="p-5 rounded-2xl glass-panel flex flex-col gap-4">
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">
-              Family Groups
-            </h3>
-            <p className="text-[10px] text-slate-500 font-bold">Manage portfolios</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                GROUPS
+              </h3>
+            </div>
+            {isAdminUnlocked && (
+              <button
+                type="button"
+                onClick={() => setIsAddMemberModalOpen(true)}
+                title="구성원 추가"
+                className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  stroke="currentColor"
+                  className="w-3.5 h-3.5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+            )}
           </div>
 
           <nav className="flex flex-col gap-1.5">
@@ -443,33 +652,57 @@ export default function DashboardPage() {
               members.map((member) => {
                 const isActive = member.id === activeMemberId;
                 return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    onClick={() => setActiveMemberId(member.id)}
-                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-left text-xs font-black transition-all duration-300 cursor-pointer border ${
-                      isActive
-                        ? "bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm"
-                        : "bg-transparent border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/40"
-                    }`}
-                  >
-                    {/* Family Avatar SVG */}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={isActive ? 2.5 : 2}
-                      stroke="currentColor"
-                      className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-500"}`}
+                  <div key={member.id} className="flex items-center gap-1.5 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setActiveMemberId(member.id)}
+                      className={`flex items-center gap-3 flex-1 px-4 py-3 rounded-xl text-left text-xs font-black transition-all duration-300 cursor-pointer border ${
+                        isActive
+                          ? "bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm"
+                          : "bg-transparent border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                      }`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                      />
-                    </svg>
-                    <span>{member.name}</span>
-                  </button>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={isActive ? 2.5 : 2}
+                        stroke="currentColor"
+                        className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-500"}`}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                        />
+                      </svg>
+                      <span className="truncate">{member.name}</span>
+                    </button>
+
+                    {isAdminUnlocked && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMember(member.id, member.name)}
+                        title={`${member.name} 삭제`}
+                        className="w-9 h-9 shrink-0 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 hover:border-rose-200 active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="currentColor"
+                          className="w-3.5 h-3.5"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 );
               })
             )}
@@ -498,6 +731,44 @@ export default function DashboardPage() {
           </svg>
           로그아웃
         </button>
+
+        {/* System Settings Button (Option 2) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (isAdminUnlocked) {
+              setIsAdminUnlocked(false);
+            } else {
+              setIsSettingsSecurityLockOpen(true);
+            }
+          }}
+          className={`w-full py-3 text-xs font-bold rounded-2xl border cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2 md:mt-auto ${
+            isAdminUnlocked
+              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10 hover:bg-indigo-500"
+              : "bg-white/60 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white"
+          }`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
+          </svg>
+          {isAdminUnlocked ? "설정 관리 잠금" : "시스템 설정"}
+        </button>
       </aside>
 
       {/* =========================================================================
@@ -523,15 +794,37 @@ export default function DashboardPage() {
 
         {/* Account Cards */}
         <div className="space-y-4">
-          <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">증권 계좌 목록</h2>
+          <div className="flex items-center justify-between h-8">
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">증권 계좌 목록</h2>
+            {isAdminUnlocked && (
+              <button
+                type="button"
+                onClick={() => setIsAddAccountModalOpen(true)}
+                className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1 active:scale-95 animate-in fade-in slide-in-from-right-2 duration-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  stroke="currentColor"
+                  className="w-3 h-3"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                계좌 추가
+              </button>
+            )}
+          </div>
           <AccountCards
             accounts={accounts}
             activeAccountId={activeAccountId}
             onChange={setActiveAccountId}
             isLoading={accountsLoading}
             exchangeRate={exchangeRate}
-            isEditMode={isEditMode}
+            isEditMode={isAdminUnlocked}
             onEditCash={openCashModal}
+            onDeleteAccount={handleDeleteAccount}
           />
         </div>
 
@@ -993,6 +1286,226 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          💎 GLASSMORPHIC MODAL - ADD MEMBER
+          ========================================================================= */}
+      {isAddMemberModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-md transition-opacity duration-300">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-white/90 backdrop-blur-xl border border-white shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-black text-slate-800 tracking-wide mb-6">
+              구성원 추가
+            </h3>
+
+            <form onSubmit={handleAddMember} className="space-y-4">
+              <div>
+                <label htmlFor="newMemberName" className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  구성원 이름
+                </label>
+                <input
+                  type="text"
+                  id="newMemberName"
+                  required
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold"
+                  maxLength={10}
+                />
+              </div>
+
+              {addMemberError && <p className="text-xs font-semibold text-rose-500 text-center">{addMemberError}</p>}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="submit"
+                  disabled={addMemberLoading}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-md shadow-indigo-600/10"
+                >
+                  {addMemberLoading ? "추가 중..." : "구성원 추가"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddMemberModalOpen(false);
+                    setNewMemberName("");
+                    setAddMemberError("");
+                  }}
+                  className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+                >
+                  취소
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          💎 GLASSMORPHIC MODAL - ADD BROKER ACCOUNT
+          ========================================================================= */}
+      {isAddAccountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-md transition-opacity duration-300">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-white/90 backdrop-blur-xl border border-white shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-black text-slate-800 tracking-wide mb-6">
+              증권 계좌 추가
+            </h3>
+
+            <form onSubmit={handleAddAccount} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="newAccountBroker" className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    증권사
+                  </label>
+                  <select
+                    id="newAccountBroker"
+                    value={newAccountBroker}
+                    onChange={(e) => setNewAccountBroker(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold cursor-pointer"
+                  >
+                    <option value="KB증권">KB증권</option>
+                    <option value="나무증권">나무증권</option>
+                    <option value="토스증권">토스증권</option>
+                    <option value="한국투자증권">한국투자증권</option>
+                    <option value="미래에셋증권">미래에셋증권</option>
+                    <option value="신한투자증권">신한투자증권</option>
+                    <option value="삼성증권">삼성증권</option>
+                    <option value="키움증권">키움증권</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="newAccountName" className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    계좌 별칭
+                  </label>
+                  <input
+                    type="text"
+                    id="newAccountName"
+                    required
+                    value={newAccountName}
+                    onChange={(e) => setNewAccountName(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold"
+                    placeholder="예: 통합계좌, ISA, 미국주식용"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="newAccountNo" className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  계좌번호
+                </label>
+                <input
+                  type="text"
+                  id="newAccountNo"
+                  required
+                  value={newAccountNo}
+                  onChange={(e) => setNewAccountNo(e.target.value)}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold"
+                  placeholder="예: 301-2245-8122-01"
+                />
+              </div>
+
+              {addAccountError && <p className="text-xs font-semibold text-rose-500 text-center">{addAccountError}</p>}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="submit"
+                  disabled={addAccountLoading}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-md shadow-indigo-600/10"
+                >
+                  {addAccountLoading ? "추가 중..." : "계좌 추가"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddAccountModalOpen(false);
+                    setNewAccountBroker("KB증권");
+                    setNewAccountName("");
+                    setNewAccountNo("");
+                    setNewAccountAppKey("");
+                    setNewAccountSecretKey("");
+                    setNewAccountCashKRW("");
+                    setNewAccountCashUSD("");
+                    setAddAccountError("");
+                  }}
+                  className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+                >
+                  취소
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          💎 GLASSMORPHIC MODAL - SYSTEM SETTINGS SECURITY LOCK
+          ========================================================================= */}
+      {isSettingsSecurityLockOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-md transition-opacity duration-300">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-white/90 backdrop-blur-xl border border-white shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-3 shadow-sm">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5 animate-pulse"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-black text-slate-800 tracking-tight">설정 잠금 해제</h3>
+              <p className="text-[11px] text-slate-500 font-bold mt-1 text-center">구조 설정을 변경하려면 관리자 비밀번호를 입력해 주세요.</p>
+            </div>
+
+            <form onSubmit={handleSecurityLockSubmit} className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  required
+                  value={settingsSecurityPinInput}
+                  onChange={(e) => setSettingsSecurityPinInput(e.target.value)}
+                  maxLength={100}
+                  className="w-full px-4 py-2.5 text-center text-sm rounded-xl bg-white border border-slate-200 text-slate-800 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold"
+                  placeholder="비밀번호를 입력하세요"
+                  autoFocus
+                />
+              </div>
+
+              {securityLockError && <p className="text-xs font-semibold text-rose-500 text-center">{securityLockError}</p>}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="submit"
+                  disabled={securityLockLoading}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-md shadow-indigo-600/10"
+                >
+                  {securityLockLoading ? "인증 중..." : "확인"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsSecurityLockOpen(false);
+                    setSettingsSecurityPinInput("");
+                    setSecurityLockError("");
+                  }}
+                  className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+                >
+                  취소
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 }
