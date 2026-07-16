@@ -34,6 +34,13 @@ export default function DashboardPage() {
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
 
+  // Smart Search Autocomplete States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isManualMode, setIsManualMode] = useState(false);
+  const [selectedStock, setSelectedStock] = useState<any | null>(null);
+
   // Form states - Edit
   const [editingItem, setEditingItem] = useState<StockBalanceItem | null>(null);
   const [editQuantity, setEditQuantity] = useState("");
@@ -43,6 +50,52 @@ export default function DashboardPage() {
   // Form states - Delete
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Reset Add Stock Form
+  const resetAddForm = () => {
+    setAddTicker("");
+    setAddStockName("");
+    setAddQuantity("");
+    setAddCurrency("KRW");
+    setSearchQuery("");
+    setSearchResults([]);
+    setSelectedStock(null);
+    setIsManualMode(false);
+    setAddError("");
+  };
+
+  // Debounced, abortable search effect for local stock cache
+  useEffect(() => {
+    if (isManualMode || !searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/holdings/search?q=${encodeURIComponent(searchQuery)}`, {
+          signal: controller.signal
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error("Failed to search stock master:", err);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      clearTimeout(delayDebounceFn);
+      controller.abort();
+    };
+  }, [searchQuery, isManualMode]);
 
   // 1. Initial load: Fetch family members
   useEffect(() => {
@@ -126,6 +179,13 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!activeAccountId) return;
     setAddError("");
+
+    // Block submission if in search mode but no ticker selected
+    if (!isManualMode && !selectedStock) {
+      setAddError("검색창에서 종목을 검색하여 선택해 주세요.");
+      return;
+    }
+
     setAddLoading(true);
 
     try {
@@ -143,11 +203,7 @@ export default function DashboardPage() {
 
       const data = await response.json();
       if (data.success) {
-        // Reset form and close
-        setAddTicker("");
-        setAddStockName("");
-        setAddQuantity("");
-        setAddCurrency("KRW");
+        resetAddForm();
         setIsAddModalOpen(false);
         // Refresh account balances
         await loadAccounts();
@@ -160,6 +216,7 @@ export default function DashboardPage() {
       setAddLoading(false);
     }
   };
+
 
   // EDIT STOCK SUBMIT
   const handleEditStockSubmit = async (e: React.FormEvent) => {
@@ -352,99 +409,264 @@ export default function DashboardPage() {
       {/* =========================================================================
           💎 GLASSMORPHIC MODAL - ADD STOCK
           ========================================================================= */}
+      {/* =========================================================================
+          💎 GLASSMORPHIC MODAL - ADD STOCK (With Autocomplete & Manual Fallback)
+          ========================================================================= */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
           <div className="w-full max-w-md p-6 rounded-2xl glass-panel border border-white/10 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-black text-white tracking-wide mb-4">🆕 새로운 주식 종목 추가</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-white tracking-wide">🆕 새로운 주식 종목 추가</h3>
+              {isManualMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManualMode(false);
+                    setSearchQuery("");
+                    setSelectedStock(null);
+                  }}
+                  className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer bg-indigo-500/5 px-2.5 py-1 rounded-lg border border-indigo-500/10 transition-all"
+                >
+                  🔍 스마트 검색 전환
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManualMode(true);
+                    setSelectedStock(null);
+                    setAddTicker("");
+                    setAddStockName("");
+                  }}
+                  className="text-[11px] font-bold text-muted hover:text-white underline cursor-pointer bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 transition-all"
+                >
+                  💡 직접 수동 기입하기
+                </button>
+              )}
+            </div>
             
             <form onSubmit={handleAddStockSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">통화 설정</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAddCurrency("KRW")}
-                    className={`py-2 text-xs font-bold rounded-xl border transition-all ${
-                      addCurrency === "KRW"
-                        ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
-                        : "bg-white/5 border-white/5 text-muted hover:text-white"
-                    }`}
-                  >
-                    원화 (KRW)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddCurrency("USD")}
-                    className={`py-2 text-xs font-bold rounded-xl border transition-all ${
-                      addCurrency === "USD"
-                        ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
-                        : "bg-white/5 border-white/5 text-muted hover:text-white"
-                    }`}
-                  >
-                    달러 (USD)
-                  </button>
+              {isManualMode ? (
+                /* ================= MANUAL ENTRY FORM ================= */
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div>
+                    <label className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">통화 설정</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAddCurrency("KRW")}
+                        className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                          addCurrency === "KRW"
+                            ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                            : "bg-white/5 border-white/5 text-muted hover:text-white"
+                        }`}
+                      >
+                        원화 (KRW)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAddCurrency("USD")}
+                        className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                          addCurrency === "USD"
+                            ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                            : "bg-white/5 border-white/5 text-muted hover:text-white"
+                        }`}
+                      >
+                        달러 (USD)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="addTicker" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                      종목코드 (Ticker)
+                    </label>
+                    <input
+                      type="text"
+                      id="addTicker"
+                      required
+                      placeholder={addCurrency === "KRW" ? "예: 005930 (6자리 코드)" : "예: AAPL, TSLA"}
+                      value={addTicker}
+                      onChange={(e) => setAddTicker(e.target.value)}
+                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="addStockName" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                      종목명
+                    </label>
+                    <input
+                      type="text"
+                      id="addStockName"
+                      required
+                      placeholder="예: 삼성전자, 애플"
+                      value={addStockName}
+                      onChange={(e) => setAddStockName(e.target.value)}
+                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-semibold"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* ================= SMART AUTOCOMPLETE SEARCH FORM ================= */
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  {!selectedStock ? (
+                    <div className="relative">
+                      <label htmlFor="searchQuery" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                        종목 검색 (명칭 또는 코드)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="searchQuery"
+                          autoFocus
+                          placeholder="검색어 입력 (예: 삼성전자, 테슬라, AAPL, 005930)..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-semibold"
+                        />
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
+                          {isSearching ? (
+                            <svg className="animate-spin h-4 w-4 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
 
-              <div>
-                <label htmlFor="addTicker" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
-                  종목코드 (Ticker)
-                </label>
-                <input
-                  type="text"
-                  id="addTicker"
-                  required
-                  placeholder={addCurrency === "KRW" ? "예: 005930 (6자리 코드)" : "예: AAPL, TSLA"}
-                  value={addTicker}
-                  onChange={(e) => setAddTicker(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
-                />
-              </div>
+                      {/* Glassmorphic Auto-complete Floating Dropdown */}
+                      {searchQuery.trim().length > 0 && (
+                        <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl glass-panel border border-white/10 shadow-2xl p-1 divide-y divide-white/5">
+                          {isSearching && searchResults.length === 0 && (
+                            <p className="p-3 text-xs text-muted text-center font-medium animate-pulse">종목 정보를 고속 검색 중...</p>
+                          )}
+                          {!isSearching && searchResults.length === 0 && (
+                            <div className="p-3 text-center">
+                              <p className="text-xs text-muted font-semibold mb-1">검색 결과가 없습니다.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddStockName(searchQuery);
+                                  setIsManualMode(true);
+                                }}
+                                className="text-xs font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                              >
+                                💡 '{searchQuery}' 수동 기입으로 등록하기
+                              </button>
+                            </div>
+                          )}
+                          {searchResults.map((stock) => (
+                            <button
+                              key={stock.symbol}
+                              type="button"
+                              onClick={() => {
+                                setSelectedStock(stock);
+                                setAddTicker(stock.symbol);
+                                setAddStockName(stock.name);
+                                setAddCurrency(stock.currency);
+                                setSearchResults([]);
+                              }}
+                              className="w-full text-left p-3 text-xs hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group cursor-pointer"
+                            >
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-bold text-white group-hover:text-indigo-300 transition-colors">{stock.name}</span>
+                                <span className="text-[10px] text-muted font-mono font-semibold uppercase">{stock.symbol} ({stock.market})</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {stock.holderCount > 0 && (
+                                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 font-bold flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    가족 보유 중 ({stock.holderCount}명)
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-indigo-300 font-mono font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 uppercase">
+                                  {stock.currency}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsManualMode(true);
+                              setSelectedStock(null);
+                            }}
+                            className="w-full text-center py-2 text-[10px] font-bold text-muted hover:text-white border-t border-white/5 transition-colors cursor-pointer block mt-1"
+                          >
+                            💡 원하는 종목이 없으신가요? 직접 수동으로 입력하기
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Display premium Selected Stock badge if selected */
+                    <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 relative overflow-hidden flex items-center justify-between animate-in zoom-in-95 duration-200">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">선택된 종목</span>
+                        <span className="text-sm font-black text-white">{addStockName}</span>
+                        <span className="text-[10px] text-muted font-mono font-bold uppercase">{addTicker} ({selectedStock.market})</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className="text-[10px] text-indigo-300 font-mono font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 uppercase">
+                          {addCurrency}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedStock(null);
+                            setAddTicker("");
+                            setAddStockName("");
+                          }}
+                          className="text-[10px] font-bold text-red-400 hover:text-red-300 cursor-pointer flex items-center gap-0.5 border border-red-500/15 bg-red-500/5 hover:bg-red-500/10 px-2 py-0.5 rounded-md transition-all active:scale-95"
+                        >
+                          ❌ 다른 종목 검색
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <div>
-                <label htmlFor="addStockName" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
-                  종목명
-                </label>
-                <input
-                  type="text"
-                  id="addStockName"
-                  required
-                  placeholder="예: 삼성전자, 애플"
-                  value={addStockName}
-                  onChange={(e) => setAddStockName(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-semibold"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="addQuantity" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
-                  보유 수량
-                </label>
-                <input
-                  type="number"
-                  id="addQuantity"
-                  required
-                  min="1"
-                  placeholder="수량 입력"
-                  value={addQuantity}
-                  onChange={(e) => setAddQuantity(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
-                />
-              </div>
+              {/* Quantity input - always shown if in manual mode or if a stock has been selected */}
+              {(isManualMode || selectedStock) && (
+                <div className="animate-in slide-in-from-bottom-2 duration-200">
+                  <label htmlFor="addQuantity" className="block text-[11px] font-bold text-muted uppercase tracking-wider mb-1">
+                    보유 수량
+                  </label>
+                  <input
+                    type="number"
+                    id="addQuantity"
+                    required
+                    min="1"
+                    placeholder="수량 입력"
+                    value={addQuantity}
+                    onChange={(e) => setAddQuantity(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-indigo-500/50 transition-colors font-mono font-bold"
+                  />
+                </div>
+              )}
 
               {addError && <p className="text-xs font-semibold text-red-400 text-center">{addError}</p>}
 
               <div className="flex gap-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    resetAddForm();
+                    setIsAddModalOpen(false);
+                  }}
                   className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 cursor-pointer active:scale-95 transition-all"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  disabled={addLoading}
+                  disabled={addLoading || (!isManualMode && !selectedStock)}
                   className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20"
                 >
                   {addLoading ? "추가 중..." : "종목 추가"}

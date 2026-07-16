@@ -71,3 +71,19 @@ model AssetSnapshot {
 
   @@unique([accountId, date]) // 계좌별로 하루에 한 개의 스냅샷만 유지
 }
+
+// 6. [추가] 하이브리드 로컬 캐시 종목 마스터 테이블 (초고속 자동완성 검색용)
+model StockMaster {
+  id          Int      @id @default(autoincrement())
+  symbol      String   @unique  // 국내 "005930", 미국 "AAPL"
+  name        String            // 회사 한글/영문 공식 명칭 (예: "삼성전자", "Apple Inc.")
+  currency    String            // "KRW" 또는 "USD"
+  market      String            // "KOSPI", "KOSDAQ", "NASDAQ", "NYSE" 등 소속 시장
+  priority    Int      @default(9999)  // 시가총액 우선순위 (숫자가 낮을수록 대형주, 예: 삼성전자 = 1)
+  holderCount Int      @default(0)     // 이 종목을 보유하고 있는 우리 가족 구성원(Member)의 수
+  updatedAt   DateTime @updatedAt
+
+  @@index([symbol])  // 코드 고속 서치 인덱스
+  @@index([name])    // 이름 고속 서치 인덱스
+}
+

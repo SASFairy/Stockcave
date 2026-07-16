@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { updateAllHolderCounts } from "@/lib/scheduler";
 
 export const dynamic = "force-dynamic";
+
 
 /**
  * Helper to fetch public stock prices (Naver for Korean 6-digit codes, Yahoo for others)
@@ -85,6 +87,9 @@ export async function POST(request: Request) {
       }
     });
 
+    // Recalculate holder count of modified stock
+    await updateAllHolderCounts();
+
     return NextResponse.json({ success: true, balance });
   } catch (error) {
     console.error("POST Holdings API Error:", error);
@@ -133,6 +138,9 @@ export async function DELETE(request: Request) {
     await prisma.stockBalance.delete({
       where: { id: parseInt(idStr, 10) }
     });
+
+    // Recalculate holder count of modified stock
+    await updateAllHolderCounts();
 
     return NextResponse.json({ success: true });
   } catch (error) {
