@@ -662,6 +662,13 @@ export default function DashboardPage() {
 
               <div className="flex gap-3 mt-6">
                 <button
+                  type="submit"
+                  disabled={addLoading || (!isManualMode && !selectedStock)}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20"
+                >
+                  {addLoading ? "추가 중..." : "종목 추가"}
+                </button>
+                <button
                   type="button"
                   onClick={() => {
                     resetAddForm();
@@ -670,13 +677,6 @@ export default function DashboardPage() {
                   className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 cursor-pointer active:scale-95 transition-all"
                 >
                   취소
-                </button>
-                <button
-                  type="submit"
-                  disabled={addLoading || (!isManualMode && !selectedStock)}
-                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20"
-                >
-                  {addLoading ? "추가 중..." : "종목 추가"}
                 </button>
               </div>
             </form>
@@ -715,6 +715,13 @@ export default function DashboardPage() {
 
               <div className="flex gap-3 mt-6">
                 <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20"
+                >
+                  {editLoading ? "수정 중..." : "수정 완료"}
+                </button>
+                <button
                   type="button"
                   onClick={() => {
                     setIsEditModalOpen(false);
@@ -723,13 +730,6 @@ export default function DashboardPage() {
                   className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 cursor-pointer active:scale-95 transition-all"
                 >
                   취소
-                </button>
-                <button
-                  type="submit"
-                  disabled={editLoading}
-                  className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20"
-                >
-                  {editLoading ? "수정 중..." : "수정 완료"}
                 </button>
               </div>
             </form>
@@ -753,6 +753,14 @@ export default function DashboardPage() {
             <div className="flex gap-3">
               <button
                 type="button"
+                onClick={handleDeleteStockSubmit}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-red-600/20"
+              >
+                {deleteLoading ? "삭제 중..." : "장부에서 삭제"}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setIsDeleteModalOpen(false);
                   setDeleteTargetId(null);
@@ -760,14 +768,6 @@ export default function DashboardPage() {
                 className="flex-1 py-2.5 text-xs font-semibold rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 cursor-pointer active:scale-95 transition-all"
               >
                 취소
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteStockSubmit}
-                disabled={deleteLoading}
-                className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-500 text-white disabled:opacity-50 cursor-pointer active:scale-95 transition-all shadow-lg shadow-red-600/20"
-              >
-                {deleteLoading ? "삭제 중..." : "장부에서 삭제"}
               </button>
             </div>
           </div>
