@@ -567,14 +567,21 @@ export default function DashboardPage() {
                               onClick={() => {
                                 setSelectedStock(stock);
                                 setAddTicker(stock.symbol);
-                                setAddStockName(stock.name);
+                                setAddStockName(stock.koreanName || stock.name);
                                 setAddCurrency(stock.currency);
                                 setSearchResults([]);
                               }}
                               className="w-full text-left p-3 text-xs hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group cursor-pointer"
                             >
-                              <div className="flex flex-col gap-0.5">
-                                <span className="font-bold text-white group-hover:text-indigo-300 transition-colors">{stock.name}</span>
+                              <div className="flex flex-col gap-0.5 max-w-[240px]">
+                                <span className="font-bold text-white group-hover:text-indigo-300 transition-colors">
+                                  {stock.koreanName || stock.name}
+                                </span>
+                                {stock.koreanName && stock.koreanName !== stock.name && (
+                                  <span className="text-[10px] text-white/50 truncate font-medium">
+                                    {stock.name}
+                                  </span>
+                                )}
                                 <span className="text-[10px] text-muted font-mono font-semibold uppercase">{stock.symbol} ({stock.market})</span>
                               </div>
                               <div className="flex items-center gap-2">

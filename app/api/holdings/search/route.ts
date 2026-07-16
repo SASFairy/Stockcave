@@ -21,9 +21,9 @@ export async function GET(request: Request) {
     // 2. priority ASC (largest market cap / prominence rank first)
     // 3. name ASC (tie-breaker)
     const results = await prisma.$queryRaw<any[]>`
-      SELECT symbol, name, currency, market, priority, "holderCount"
+      SELECT symbol, name, "koreanName", currency, market, priority, "holderCount"
       FROM "StockMaster"
-      WHERE symbol LIKE ${containsPattern} OR name LIKE ${containsPattern}
+      WHERE symbol LIKE ${containsPattern} OR name LIKE ${containsPattern} OR "koreanName" LIKE ${containsPattern}
       ORDER BY 
         "holderCount" DESC,
         priority ASC,

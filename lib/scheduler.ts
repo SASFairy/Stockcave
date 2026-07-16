@@ -8,14 +8,17 @@ import { prisma } from "./prisma";
 export function startScheduler() {
   console.log("⏰ [Scheduler] Node-cron initialized and active.");
 
-  // 1. Check if StockMaster is empty and trigger initial sync on startup asynchronously
-  prisma.stockMaster.count()
-    .then((count) => {
-      if (count === 0) {
-        console.log("⏰ [Scheduler] StockMaster cache is empty. Triggering initial synchronization in the background...");
+  // 1. Check if StockMaster is empty or has untranslated US stocks, and trigger initial sync on startup
+  Promise.all([
+    prisma.stockMaster.count(),
+    prisma.stockMaster.count({ where: { currency: "USD", koreanName: null } })
+  ])
+    .then(([count, untranslatedCount]) => {
+      if (count === 0 || untranslatedCount > 0) {
+        console.log(`⏰ [Scheduler] Triggering synchronization in the background (Total records: ${count}, Untranslated US: ${untranslatedCount})...`);
         syncStockMaster();
       } else {
-        console.log(`⏰ [Scheduler] StockMaster cache has ${count} records. Ready.`);
+        console.log(`⏰ [Scheduler] StockMaster cache has ${count} records and is fully translated. Ready.`);
       }
     })
     .catch((err) => {
@@ -113,19 +116,51 @@ export async function syncStockMaster() {
 
     console.log(`🔄 [StockMaster Sync] Parsed ${krStocks.length} KR stocks and ${usStocks.length} US stocks. Total: ${allStocks.length}`);
 
+    // Fetch existing symbol-to-name and symbol-to-koreanName maps to handle name changes and assign initial koreanName
+    const existingStocks = await prisma.stockMaster.findMany({
+      select: { symbol: true, name: true, koreanName: true },
+    });
+    const existingNamesMap = new Map(existingStocks.map(s => [s.symbol, s.name]));
+    const existingKoreanNamesMap = new Map(existingStocks.map(s => [s.symbol, s.koreanName]));
+
     // Upsert stocks in chunks of 100 to avoid SQLite limits or memory overhead
     const chunkSize = 100;
     for (let i = 0; i < allStocks.length; i += chunkSize) {
       const chunk = allStocks.slice(i, i + chunkSize);
       await Promise.all(
-        chunk.map(stock =>
-          prisma.stockMaster.upsert({
+        chunk.map(stock => {
+          const isUS = stock.currency === "USD";
+          const existingName = existingNamesMap.get(stock.symbol);
+          const hasRecord = existingNamesMap.has(stock.symbol);
+          const nameChanged = existingName && existingName !== stock.name;
+
+          let targetKoreanName: string | null | undefined = undefined;
+
+          if (!isUS) {
+            // For KR stocks, koreanName is always equal to its name
+            targetKoreanName = stock.name;
+          } else {
+            // For US stocks:
+            if (nameChanged) {
+              // Self-healing reset: if English name changed, reset koreanName to null so it's re-translated
+              targetKoreanName = null;
+            } else if (!hasRecord) {
+              // If it's a completely new US stock, initialize to null
+              targetKoreanName = null;
+            } else {
+              // Keep existing koreanName (do not overwrite)
+              targetKoreanName = undefined;
+            }
+          }
+
+          return prisma.stockMaster.upsert({
             where: { symbol: stock.symbol },
             update: {
               name: stock.name,
               currency: stock.currency,
               market: stock.market,
               priority: stock.priority,
+              koreanName: targetKoreanName,
             },
             create: {
               symbol: stock.symbol,
@@ -133,10 +168,11 @@ export async function syncStockMaster() {
               currency: stock.currency,
               market: stock.market,
               priority: stock.priority,
+              koreanName: !isUS ? stock.name : null,
               holderCount: 0,
             },
-          })
-        )
+          });
+        })
       );
     }
 
@@ -144,8 +180,116 @@ export async function syncStockMaster() {
     await updateAllHolderCounts();
 
     console.log("🔄 [StockMaster Sync] Local stock cache synchronized successfully!");
+
+    // Trigger Naver Finance Korean translation sequentially in the background
+    translateUSStocksToKorean();
   } catch (error) {
     console.error("🔄 [StockMaster Sync Error] Failed to synchronize stock cache:", error);
+  }
+}
+
+/**
+ * Background process to translate US stocks using Naver Finance basic info API sequentially.
+ * Prioritizes top-priority market leaders first and falls back to original name if not found.
+ */
+async function translateUSStocksToKorean() {
+  console.log("🔄 [StockMaster Sync] Starting Naver Finance Korean translation background process...");
+  try {
+    const untranslated = await prisma.stockMaster.findMany({
+      where: {
+        currency: "USD",
+        koreanName: null,
+      },
+      orderBy: {
+        priority: "asc",
+      },
+    });
+
+    if (untranslated.length === 0) {
+      console.log("🔄 [StockMaster Sync] All US stocks already have Korean names. Skipping background translation.");
+      return;
+    }
+
+    console.log(`🔄 [StockMaster Sync] Found ${untranslated.length} US stocks to fetch from Naver Finance in background.`);
+
+    for (let i = 0; i < untranslated.length; i++) {
+      const stock = untranslated[i];
+      const symbol = stock.symbol;
+      const market = stock.market;
+
+      let koreanName: string | null = null;
+      const cleanSymbol = symbol.replace(/[\.-]/g, "").trim();
+
+      let candidates: string[] = [];
+      if (market === "NASDAQ") {
+        candidates = [
+          `${symbol}.O`,
+          `${cleanSymbol}.O`,
+          `${symbol}`,
+          `${cleanSymbol}`,
+        ];
+      } else {
+        candidates = [
+          `${symbol}`,
+          `${cleanSymbol}`,
+          `${symbol}.O`,
+          `${cleanSymbol}.O`,
+        ];
+      }
+
+      // Handle special dual-class shares like Berkshire Hathaway (e.g. BRK/A, BRK/B, BRK.B, BRK-B)
+      // Convert slash/dot/dash class suffixes to a lowercase letter, which is Naver's standard (e.g. BRKa, BRKb)
+      if (symbol.includes("/") || symbol.includes(".") || symbol.includes("-")) {
+        const classMatch = symbol.match(/^([A-Z]+)[\/\.-]([A-Z])$/i);
+        if (classMatch) {
+          const base = classMatch[1];
+          const cls = classMatch[2].toLowerCase(); // e.g. "a" or "b"
+          candidates.unshift(`${base}${cls}`); // Put at the absolute front of candidates
+        }
+      }
+
+      for (const candidate of candidates) {
+        try {
+          const url = `https://api.stock.naver.com/stock/${candidate}/basic`;
+          const res = await fetch(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            },
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.stockName) {
+              // Check if the returned name has Korean characters (Hangul)
+              if (/[\uac00-\ud7a3]/g.test(json.stockName)) {
+                koreanName = json.stockName;
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          // Ignore and try next candidate
+        }
+      }
+
+      // If found on Naver Finance, use it. Otherwise, fallback to unrefined original English name
+      const finalKoreanName = koreanName || stock.name;
+
+      await prisma.stockMaster.update({
+        where: { symbol },
+        data: { koreanName: finalKoreanName },
+      });
+
+      if ((i + 1) % 100 === 0 || i === untranslated.length - 1) {
+        console.log(`🔄 [StockMaster Sync Progress] Processed ${i + 1}/${untranslated.length} US stocks. Last: ${symbol} -> ${finalKoreanName}`);
+      }
+
+      // Safe, polite rate-limiting delay between requests (120ms)
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+
+    console.log("🔄 [StockMaster Sync] Finished Naver Finance Korean translation for all US stocks.");
+  } catch (err) {
+    console.error("🔄 [StockMaster Sync Error] Error in Naver background translation:", err);
   }
 }
 
@@ -316,7 +460,7 @@ async function fetchUSStockMaster() {
               name,
               currency: "USD",
               market: "US Market",
-              priority: 1000 + usRank++,
+              priority: usRank++,
             };
           }
         }
@@ -349,7 +493,7 @@ async function fetchUSStockMaster() {
                 name,
                 currency: "USD",
                 market: "US Ticker",
-                priority: 10000 + usRank++, // Lower priority for miscellaneous listings
+                priority: 5000 + usRank++, // Lower priority for miscellaneous listings
               };
             }
           }
@@ -387,14 +531,14 @@ async function fetchUSStockMaster() {
   let etfRank = 1;
   for (const etf of popularETFs) {
     if (usStocksMap[etf.symbol]) {
-      usStocksMap[etf.symbol].priority = 5000 + etfRank++;
+      usStocksMap[etf.symbol].priority = 2000 + etfRank++;
     } else {
       usStocksMap[etf.symbol] = {
         symbol: etf.symbol,
         name: etf.name,
         currency: "USD",
         market: "US ETF",
-        priority: 5000 + etfRank++,
+        priority: 2000 + etfRank++,
       };
     }
   }

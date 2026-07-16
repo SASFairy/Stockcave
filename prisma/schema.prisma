@@ -77,13 +77,15 @@ model StockMaster {
   id          Int      @id @default(autoincrement())
   symbol      String   @unique  // 국내 "005930", 미국 "AAPL"
   name        String            // 회사 한글/영문 공식 명칭 (예: "삼성전자", "Apple Inc.")
+  koreanName  String?           // 미국 주식의 한글 이름 보관 (국내 주식은 name과 동일)
   currency    String            // "KRW" 또는 "USD"
   market      String            // "KOSPI", "KOSDAQ", "NASDAQ", "NYSE" 등 소속 시장
   priority    Int      @default(9999)  // 시가총액 우선순위 (숫자가 낮을수록 대형주, 예: 삼성전자 = 1)
   holderCount Int      @default(0)     // 이 종목을 보유하고 있는 우리 가족 구성원(Member)의 수
   updatedAt   DateTime @updatedAt
 
-  @@index([symbol])  // 코드 고속 서치 인덱스
-  @@index([name])    // 이름 고속 서치 인덱스
+  @@index([symbol])      // 코드 고속 서치 인덱스
+  @@index([name])        // 이름 고속 서치 인덱스
+  @@index([koreanName])  // 한글 사명 고속 서치 인덱스
 }
 
