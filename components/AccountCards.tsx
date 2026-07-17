@@ -166,10 +166,15 @@ export default function AccountCards({
             onClick={() => onChange(account.accountId)}
             className={`glass-card p-5 rounded-2xl cursor-pointer relative transition-all duration-300 flex flex-col justify-between w-[320px] shrink-0 ${
               isActive
-                ? "border-indigo-500/40 bg-white/70 shadow-[0_12px_30px_rgba(99,102,241,0.06)] ring-1 ring-indigo-500/20"
+                ? "border-indigo-500/50 bg-white/80 shadow-[0_16px_36px_rgba(99,102,241,0.12)] ring-1 ring-indigo-500/30 scale-[1.01]"
                 : "border-white/60 bg-white/30 hover:bg-white/55 hover:border-indigo-500/10 shadow-[0_4px_20px_rgba(0,0,0,0.01)]"
             }`}
           >
+            {/* Stripe/Vercel-style Top Gradient Bar for the Selected Card (Ultra-light bright pastel weights for premium minimalist look) */}
+            {isActive && (
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-200 via-purple-200 to-sky-200 rounded-t-2xl" />
+            )}
+
             <div>
               {/* Broker & Account Info */}
               <div className="mb-4 flex items-start justify-between">
