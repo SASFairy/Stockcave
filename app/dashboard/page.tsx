@@ -39,6 +39,36 @@ export default function DashboardPage() {
   const [securityLockLoading, setSecurityLockLoading] = useState(false);
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
 
+  // VIEW MODE STATE (Account vs Consolidated Portfolio)
+  const [viewMode, setViewMode] = useState<"account" | "consolidated">("account");
+
+  // Helper to aggregate stock balances across all accounts mathematically
+  const getConsolidatedBalances = (accountsList: AccountItem[]): StockBalanceItem[] => {
+    const map: { [ticker: string]: StockBalanceItem } = {};
+
+    for (const account of accountsList) {
+      for (const item of account.balances) {
+        const existing = map[item.ticker];
+        if (existing) {
+          const totalQty = existing.quantity + item.quantity;
+          const totalCost = (existing.quantity * existing.avgBuyPrice) + (item.quantity * item.avgBuyPrice);
+          const weightedAvgBuyPrice = totalQty > 0 ? totalCost / totalQty : 0;
+
+          existing.quantity = totalQty;
+          existing.avgBuyPrice = weightedAvgBuyPrice;
+          existing.currentPrice = item.currentPrice;
+          existing.previousClose = item.previousClose;
+        } else {
+          map[item.ticker] = {
+            ...item,
+          };
+        }
+      }
+    }
+
+    return Object.values(map);
+  };
+
   // Form states - Member addition
   const [newMemberName, setNewMemberName] = useState("");
   const [addMemberError, setAddMemberError] = useState("");
@@ -572,6 +602,29 @@ export default function DashboardPage() {
   const activeAccount = accounts.find((acc) => acc.accountId === activeAccountId);
   const activeMemberName = members.find((m) => m.id === activeMemberId)?.name || "";
 
+  // Consolidated Math Calculations across all brokerage accounts
+  const totalCashKRW = accounts.reduce((sum, acc) => sum + (acc.cashKRW || 0), 0);
+  const totalCashUSD = accounts.reduce((sum, acc) => sum + (acc.cashUSD || 0), 0);
+  
+  const totalKRWStocks = accounts.reduce((sum, acc) => {
+    return sum + acc.balances.reduce((bSum, b) => b.currency === "KRW" ? bSum + (b.quantity * b.currentPrice) : bSum, 0);
+  }, 0);
+  
+  const totalUSDStocks = accounts.reduce((sum, acc) => {
+    return sum + acc.balances.reduce((bSum, b) => b.currency === "USD" ? bSum + (b.quantity * b.currentPrice) : bSum, 0);
+  }, 0);
+
+  const totalStockValuation = totalKRWStocks + (totalUSDStocks * exchangeRate);
+  const totalNetWorth = totalStockValuation + totalCashKRW + (totalCashUSD * exchangeRate);
+
+  // Synchronization Timing stable calculations
+  const latestSyncTime = accounts.length > 0
+    ? new Date(Math.max(...accounts.map((a) => new Date(a.lastSyncedAt || 0).getTime()))).toLocaleString()
+    : "";
+  const displaySyncTime = viewMode === "consolidated"
+    ? latestSyncTime
+    : (activeAccount ? new Date(activeAccount.lastSyncedAt).toLocaleString() : "");
+
   return (
     <div className="min-h-screen max-w-[1400px] mx-auto p-4 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 relative">
       {/* Pure CSS Slow-Floating Ambient Aurora Background Circles */}
@@ -807,64 +860,179 @@ export default function DashboardPage() {
           ========================================================================= */}
       <main className="flex-1 space-y-6 relative z-10 min-w-0">
         {/* Sticky-like Info & Status Bar */}
-        <header className="p-5 rounded-2xl glass-panel flex items-center justify-between gap-4">
+        <header className="p-5 rounded-2xl glass-panel flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
               {activeMemberName && `${activeMemberName}의 `}보유 주식 실시간 잔고
             </h2>
           </div>
-          {activeAccount && (
-            <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">실시간 시세 동기화</span>
-              <span className="text-xs font-bold text-indigo-600">
-                {new Date(activeAccount.lastSyncedAt).toLocaleString()}
-              </span>
-            </div>
-          )}
-        </header>
-
-        {/* Account Cards */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between h-8">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">증권 계좌 목록</h2>
-            {isAdminUnlocked && (
+          <div className="flex flex-wrap items-center gap-4 self-end sm:self-auto">
+            {/* 3안 마이크로 세그먼트 토글 스위치 */}
+            <div className="flex p-0.5 rounded-xl bg-slate-100/80 border border-slate-200/60 shadow-inner">
               <button
                 type="button"
-                onClick={() => setIsAddAccountModalOpen(true)}
-                className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1 active:scale-95 animate-in fade-in slide-in-from-right-2 duration-200"
+                onClick={() => setViewMode("account")}
+                className={`px-4 py-2 rounded-xl text-xs font-black tracking-wide transition-all cursor-pointer select-none active:scale-95 ${
+                  viewMode === "account"
+                    ? "bg-white text-indigo-600 border border-slate-200/50 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2.5}
-                  stroke="currentColor"
-                  className="w-3 h-3"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                계좌 추가
+                계좌별 자산
               </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("consolidated")}
+                className={`px-4 py-2 rounded-xl text-xs font-black tracking-wide transition-all cursor-pointer select-none active:scale-95 ${
+                  viewMode === "consolidated"
+                    ? "bg-white text-indigo-600 border border-slate-200/50 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                통합 포트폴리오
+              </button>
+            </div>
+            {displaySyncTime && (
+              <div className="text-right min-w-[120px]">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">실시간 시세 동기화</span>
+                <span className="text-xs font-bold text-indigo-600">
+                  {displaySyncTime}
+                </span>
+              </div>
             )}
           </div>
-          <AccountCards
-            accounts={accounts}
-            activeAccountId={activeAccountId}
-            onChange={setActiveAccountId}
-            isLoading={accountsLoading}
-            exchangeRate={exchangeRate}
-            isEditMode={isAdminUnlocked}
-            onEditCash={openCashModal}
-            onDeleteAccount={handleDeleteAccount}
-          />
-        </div>
+        </header>
+
+        {/* Account Cards / Consolidated Master Card */}
+        {viewMode === "account" ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between h-8">
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">증권 계좌 목록</h2>
+              {isAdminUnlocked && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddAccountModalOpen(true)}
+                  className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1 active:scale-95 animate-in fade-in slide-in-from-right-2 duration-200"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                    className="w-3 h-3"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  계좌 추가
+                </button>
+              )}
+            </div>
+            <AccountCards
+              accounts={accounts}
+              activeAccountId={activeAccountId}
+              onChange={setActiveAccountId}
+              isLoading={accountsLoading}
+              exchangeRate={exchangeRate}
+              isEditMode={isAdminUnlocked}
+              onEditCash={openCashModal}
+              onDeleteAccount={handleDeleteAccount}
+            />
+          </div>
+        ) : (
+          <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center justify-between h-8">
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">전체 통합 자산 현황</h2>
+            </div>
+            
+            {/* Consolidated Master Card - Identical Layout & Style to Brokerage Cards */}
+            <div className="glass-card p-5 rounded-2xl relative transition-all duration-300 flex flex-col justify-between w-[320px] border-indigo-500/40 bg-white/70 shadow-[0_12px_30px_rgba(99,102,241,0.06)] ring-1 ring-indigo-500/20">
+              <div>
+                {/* Header equivalent */}
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 tracking-wider uppercase">
+                        통합 자산
+                      </span>
+                      <h3 className="text-sm font-bold text-slate-800 tracking-wide">
+                        전체 포트폴리오
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500 font-bold">모든 계좌 합산 현황</p>
+                  </div>
+                </div>
+
+                {/* 총 자산평가 */}
+                <div className="mb-5">
+                  <p className="text-[11px] uppercase text-slate-500 tracking-widest font-black mb-1">종합 순자산</p>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-3xl font-black text-slate-800 tracking-tight">
+                      ₩{Math.round(totalNetWorth).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 국내 자산 요약 */}
+                <div className="space-y-2 py-3 border-t border-slate-100 text-sm font-semibold text-slate-700">
+                  <p className="text-[11px] uppercase text-slate-500 tracking-widest font-black mb-1.5">국내 자산</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-bold">주식 평가액</span>
+                    <span className="text-slate-800 font-black text-sm">₩{Math.round(totalKRWStocks).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-bold">원화 예수금</span>
+                    <span className="text-slate-800 font-black text-sm">₩{Math.round(totalCashKRW).toLocaleString()}</span>
+                  </div>
+                  {(totalUSDStocks > 0 || totalCashUSD > 0) && (
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100/60 text-xs text-slate-500 font-bold">
+                      <span>국내 자산 합계</span>
+                      <span className="text-slate-800 font-black text-sm">₩{Math.round(totalKRWStocks + totalCashKRW).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 해외 자산 요약 */}
+                {(totalUSDStocks > 0 || totalCashUSD > 0) && (
+                  <div className="space-y-2 py-3 border-t border-slate-100 text-sm font-semibold text-slate-700">
+                    <p className="text-[11px] uppercase text-slate-500 tracking-widest font-black mb-1.5">해외 자산</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 font-bold">주식 평가액</span>
+                      <span className="text-slate-800 font-black text-sm">${totalUSDStocks.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 font-bold">달러 예수금</span>
+                      <span className="text-slate-800 font-black text-sm">${totalCashUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100/60 text-xs text-slate-500 font-bold">
+                      <span>해외 자산 합계</span>
+                      <span className="text-slate-800 font-black text-sm">${(totalUSDStocks + totalCashUSD).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100/60 text-sm text-slate-500 font-bold">
+                      <span>원화 환산액</span>
+                      <span className="text-slate-800 font-black text-sm">
+                        ₩{Math.round((totalUSDStocks + totalCashUSD) * exchangeRate).toLocaleString()}
+                        <span className="text-[10px] text-slate-500 font-extrabold ml-1.5">(환율 {exchangeRate.toLocaleString(undefined, { minimumFractionDigits: 0 })}원)</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stock Balances table segment */}
         <div className="space-y-4">
+          <div className="flex items-center justify-between h-8">
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
+              {viewMode === "consolidated" ? "통합 보유 종목 포트폴리오" : "보유 종목 잔고"}
+            </h2>
+          </div>
           <StockTable
-            balances={activeAccount ? activeAccount.balances : []}
+            balances={viewMode === "consolidated" ? getConsolidatedBalances(accounts) : (activeAccount ? activeAccount.balances : [])}
             isLoading={accountsLoading}
-            isEditMode={isEditMode}
+            isEditMode={viewMode === "consolidated" ? false : isEditMode}
             onEdit={triggerEditModal}
             onDelete={triggerDeleteModal}
             onAdd={() => setIsAddModalOpen(true)}
