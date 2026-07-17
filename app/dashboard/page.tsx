@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const [addMemberLoading, setAddMemberLoading] = useState(false);
 
   // Form states - Account addition
-  const [newAccountBroker, setNewAccountBroker] = useState("KB증권");
+  const [newAccountBroker, setNewAccountBroker] = useState("");
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountNo, setNewAccountNo] = useState("");
   const [newAccountAppKey, setNewAccountAppKey] = useState("");
@@ -288,7 +288,7 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setNewAccountBroker("KB증권");
+        setNewAccountBroker("");
         setNewAccountName("");
         setNewAccountNo("");
         setNewAccountAppKey("");
@@ -1572,21 +1572,16 @@ export default function DashboardPage() {
                   <label htmlFor="newAccountBroker" className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     증권사
                   </label>
-                  <select
+                  <input
+                    type="text"
                     id="newAccountBroker"
+                    required
                     value={newAccountBroker}
                     onChange={(e) => setNewAccountBroker(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold cursor-pointer"
-                  >
-                    <option value="KB증권">KB증권</option>
-                    <option value="나무증권">나무증권</option>
-                    <option value="토스증권">토스증권</option>
-                    <option value="한국투자증권">한국투자증권</option>
-                    <option value="미래에셋증권">미래에셋증권</option>
-                    <option value="신한투자증권">신한투자증권</option>
-                    <option value="삼성증권">삼성증권</option>
-                    <option value="키움증권">키움증권</option>
-                  </select>
+                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 placeholder-slate-300 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-bold"
+                    placeholder="예: KB증권, 토스증권 등"
+                    maxLength={30}
+                  />
                 </div>
 
                 <div>
@@ -1634,7 +1629,7 @@ export default function DashboardPage() {
                   type="button"
                   onClick={() => {
                     setIsAddAccountModalOpen(false);
-                    setNewAccountBroker("KB증권");
+                    setNewAccountBroker("");
                     setNewAccountName("");
                     setNewAccountNo("");
                     setNewAccountAppKey("");
