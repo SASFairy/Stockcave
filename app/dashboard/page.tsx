@@ -1037,6 +1037,7 @@ export default function DashboardPage() {
             onEdit={triggerEditModal}
             onDelete={triggerDeleteModal}
             onAdd={() => setIsAddModalOpen(true)}
+            storageKey={viewMode === "consolidated" ? "consolidated" : (activeAccount ? `account_${activeAccount.accountId}` : undefined)}
           />
         </div>
       </main>

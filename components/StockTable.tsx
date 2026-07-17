@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { StockBalanceItem } from "./AccountCards";
 
 interface StockTableProps {
@@ -9,6 +10,7 @@ interface StockTableProps {
   onEdit?: (item: StockBalanceItem) => void;
   onDelete?: (id: number) => void;
   onAdd?: () => void;
+  storageKey?: string; // 💾 Key to isolate drag-and-drop order in localStorage
 }
 
 export default function StockTable({
@@ -18,7 +20,37 @@ export default function StockTable({
   onEdit,
   onDelete,
   onAdd,
+  storageKey,
 }: StockTableProps) {
+  // Column Sorting States
+  const [sortConfig, setSortConfig] = useState<{
+    key: "quantity" | "currentPrice" | "valuation" | null;
+    direction: "asc" | "desc" | null;
+  }>({ key: null, direction: null });
+
+  // Custom Drag-and-drop Order States
+  const [tickerOrder, setTickerOrder] = useState<string[]>([]);
+  const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
+  const [dragOverTicker, setDragOverTicker] = useState<string | null>(null);
+
+  // Sync custom ticker order with localStorage whenever storageKey shifts
+  useEffect(() => {
+    if (storageKey) {
+      const saved = localStorage.getItem(`stock_order_${storageKey}`);
+      if (saved) {
+        try {
+          setTickerOrder(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse stock custom order:", e);
+        }
+      } else {
+        setTickerOrder([]);
+      }
+    } else {
+      setTickerOrder([]);
+    }
+  }, [storageKey]);
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -36,6 +68,114 @@ export default function StockTable({
     return `₩${Math.round(value).toLocaleString()}`;
   };
 
+  // 3-way toggle sort function: DESC -> ASC -> RESET (custom/drag order)
+  const handleSort = (key: "quantity" | "currentPrice" | "valuation") => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        if (prev.direction === "desc") {
+          return { key, direction: "asc" };
+        } else if (prev.direction === "asc") {
+          return { key: null, direction: null };
+        }
+      }
+      return { key, direction: "desc" };
+    });
+  };
+
+  // Retrieve sorted balances considering both active sortConfig and custom tickerOrder
+  const getSortedBalances = () => {
+    const items = [...balances];
+
+    // 1. Prioritize column headers sorting if active
+    if (sortConfig.key) {
+      items.sort((a, b) => {
+        let valA = 0;
+        let valB = 0;
+
+        if (sortConfig.key === "quantity") {
+          valA = a.quantity;
+          valB = b.quantity;
+        } else if (sortConfig.key === "currentPrice") {
+          valA = a.currentPrice;
+          valB = b.currentPrice;
+        } else if (sortConfig.key === "valuation") {
+          valA = a.quantity * a.currentPrice;
+          valB = b.quantity * b.currentPrice;
+        }
+
+        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+      return items;
+    }
+
+    // 2. Otherwise fallback to custom drag order
+    if (tickerOrder.length > 0) {
+      items.sort((a, b) => {
+        const indexA = tickerOrder.indexOf(a.ticker);
+        const indexB = tickerOrder.indexOf(b.ticker);
+
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return 0;
+      });
+    }
+
+    return items;
+  };
+
+  // Drag and drop event handlers
+  const handleDragStart = (e: React.DragEvent, ticker: string) => {
+    setDraggedTicker(ticker);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, ticker: string) => {
+    e.preventDefault();
+    if (ticker !== dragOverTicker) {
+      setDragOverTicker(ticker);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTicker(null);
+    setDragOverTicker(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetTicker: string) => {
+    e.preventDefault();
+    const currentDragged = draggedTicker;
+    handleDragEnd();
+
+    if (!currentDragged || currentDragged === targetTicker) return;
+
+    const sortedBalances = getSortedBalances();
+    const currentTickers = sortedBalances.map((b) => b.ticker);
+
+    const fromIndex = currentTickers.indexOf(currentDragged);
+    const toIndex = currentTickers.indexOf(targetTicker);
+
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const newTickers = [...currentTickers];
+    newTickers.splice(fromIndex, 1);
+    newTickers.splice(toIndex, 0, currentDragged);
+
+    setTickerOrder(newTickers);
+    if (storageKey) {
+      localStorage.setItem(`stock_order_${storageKey}`, JSON.stringify(newTickers));
+    }
+
+    // Switch sort status back to custom/drag-and-drop order immediately!
+    setSortConfig({ key: null, direction: null });
+  };
+
+  const sortedBalancesList = getSortedBalances();
+
   return (
     <div className="space-y-4">
       <div className="w-full overflow-x-auto rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md scrollbar-thin shadow-sm">
@@ -43,16 +183,47 @@ export default function StockTable({
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500">종목</th>
-              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right">보유량</th>
-              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right">실시간 현재가</th>
-              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right">총 평가금액</th>
+              {/* Interactive headers */}
+              <th
+                onClick={() => handleSort("quantity")}
+                className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right cursor-pointer hover:text-slate-800 transition-colors select-none"
+              >
+                <div className="flex items-center justify-end gap-1">
+                  보유량
+                  <span className="text-[10px] text-indigo-500 font-extrabold w-3 inline-block transition-transform duration-200">
+                    {sortConfig.key === "quantity" ? (sortConfig.direction === "asc" ? "▲" : "▼") : " "}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("currentPrice")}
+                className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right cursor-pointer hover:text-slate-800 transition-colors select-none"
+              >
+                <div className="flex items-center justify-end gap-1">
+                  실시간 현재가
+                  <span className="text-[10px] text-indigo-500 font-extrabold w-3 inline-block transition-transform duration-200">
+                    {sortConfig.key === "currentPrice" ? (sortConfig.direction === "asc" ? "▲" : "▼") : " "}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("valuation")}
+                className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-right cursor-pointer hover:text-slate-800 transition-colors select-none"
+              >
+                <div className="flex items-center justify-end gap-1">
+                  총 평가금액
+                  <span className="text-[10px] text-indigo-500 font-extrabold w-3 inline-block transition-transform duration-200">
+                    {sortConfig.key === "valuation" ? (sortConfig.direction === "asc" ? "▲" : "▼") : " "}
+                  </span>
+                </div>
+              </th>
               {isEditMode && (
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 text-center">관리</th>
               )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {balances.length === 0 ? (
+            {sortedBalancesList.length === 0 ? (
               <tr>
                 <td
                   colSpan={isEditMode ? 5 : 4}
@@ -62,7 +233,7 @@ export default function StockTable({
                 </td>
               </tr>
             ) : (
-              balances.map((item) => {
+              sortedBalancesList.map((item) => {
                 const valuation = item.quantity * item.currentPrice;
 
                 // Calculate real-time absolute change and fluctuation rate from previousClose
@@ -78,21 +249,37 @@ export default function StockTable({
                   return Math.round(absChange).toLocaleString();
                 };
 
+                const isDragged = item.ticker === draggedTicker;
+                const isDragOver = item.ticker === dragOverTicker && !isDragged;
+
                 return (
                   <tr
                     key={item.ticker}
-                    className="hover:bg-white/40 transition-colors duration-200"
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, item.ticker)}
+                    onDragOver={(e) => handleDragOver(e, item.ticker)}
+                    onDragEnd={handleDragEnd}
+                    onDrop={(e) => handleDrop(e, item.ticker)}
+                    className={`transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${
+                      isDragged
+                        ? "opacity-40 bg-indigo-50/30 scale-[0.98] ring-1 ring-indigo-100"
+                        : isDragOver
+                          ? "bg-indigo-50/20 border-y border-indigo-100/50"
+                          : "hover:bg-white/40"
+                    }`}
                   >
                     {/* Stock Name & Ticker */}
                     <td className="px-6 py-4">
-                      <div className="font-bold text-slate-800 tracking-wide">{item.stockName}</div>
-                      <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 mt-1">
-                        {item.currency === "USD" && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100 font-black uppercase">
-                            US
-                          </span>
-                        )}
-                        {item.ticker}
+                      <div>
+                        <div className="font-bold text-slate-800 tracking-wide">{item.stockName}</div>
+                        <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 mt-1">
+                          {item.currency === "USD" && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100 font-black uppercase">
+                              US
+                            </span>
+                          )}
+                          {item.ticker}
+                        </div>
                       </div>
                     </td>
 
@@ -135,7 +322,7 @@ export default function StockTable({
                     {/* Manage Buttons (Pencil and Trash) */}
                     {isEditMode && (
                       <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           {/* Edit button */}
                           <button
                             type="button"
