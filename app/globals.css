@@ -135,6 +135,14 @@ body {
   box-shadow: 0 12px 24px -5px rgba(99, 102, 241, 0.08);
 }
 
+/* Reset hover effects for static, non-clickable cards */
+.glass-card-static:hover {
+  transform: none !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.01) !important;
+}
+
 /* Customized scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

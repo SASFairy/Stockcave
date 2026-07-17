@@ -957,8 +957,8 @@ export default function DashboardPage() {
             </div>
             
             <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full">
-              {/* Consolidated Master Card - Identical Layout & Style to Brokerage Cards */}
-              <div className="glass-card p-5 rounded-2xl relative transition-all duration-300 flex flex-col justify-between w-[320px] shrink-0 border-indigo-500/40 bg-white/70 shadow-[0_12px_30px_rgba(99,102,241,0.06)] ring-1 ring-indigo-500/20">
+              {/* Consolidated Master Card - Identical Layout & Style to Brokerage Cards (Static, no click action) */}
+              <div className="glass-card glass-card-static p-5 rounded-2xl relative transition-all duration-300 flex flex-col justify-between w-[320px] shrink-0 border-indigo-500/40 bg-white/70 shadow-[0_12px_30px_rgba(99,102,241,0.06)] ring-1 ring-indigo-500/20">
                 <div>
                   {/* Header equivalent */}
                   <div className="mb-4 flex items-start justify-between">

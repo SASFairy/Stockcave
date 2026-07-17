@@ -259,7 +259,7 @@ export default function AssetAllocationChart({
   };
 
   return (
-    <div className="w-full flex-1 glass-card p-5 rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md shadow-sm relative flex flex-col justify-between min-h-[380px]">
+    <div className="w-full flex-1 glass-card glass-card-static p-5 rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md shadow-sm relative flex flex-col justify-between min-h-[380px]">
       
       {/* 2-Column Responsive Layout directly from the top, removing full-width title block */}
       <div className="flex-1 flex flex-col md:flex-row items-center gap-6 w-full h-full">
