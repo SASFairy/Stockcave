@@ -934,7 +934,8 @@ export default function DashboardPage() {
               onChange={setActiveAccountId}
               isLoading={accountsLoading}
               exchangeRate={exchangeRate}
-              isEditMode={isAdminUnlocked}
+              isEditMode={isEditMode}
+              isAdminMode={isAdminUnlocked}
               onEditCash={openCashModal}
               onDeleteAccount={handleDeleteAccount}
             />
