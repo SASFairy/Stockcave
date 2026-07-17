@@ -240,36 +240,49 @@ async function fetchPublicPrice(ticker: string, currency: string): Promise<{ pri
       if (res.ok) {
         const data = await res.json();
         const datas = data?.result?.areas?.[0]?.datas || data?.datas;
-        const rawPrice = datas?.[0]?.closePrice;
-        if (rawPrice) {
-          const price = parseFloat(rawPrice.replace(/,/g, ""));
-          const rawRatio = datas?.[0]?.fluctuationsRatio;
-          const isRising = datas?.[0]?.compareToPreviousCloseState?.name === "RISING" || datas?.[0]?.compareToPreviousCloseState?.name === "UPPER_LIMIT";
-          const isFalling = datas?.[0]?.compareToPreviousCloseState?.name === "FALLING" || datas?.[0]?.compareToPreviousCloseState?.name === "LOWER_LIMIT";
+        const rawPrice = datas?.[0]?.nv;
+        if (rawPrice !== undefined && rawPrice !== null) {
+          const price = typeof rawPrice === "number" ? rawPrice : parseFloat(rawPrice.toString().replace(/,/g, ""));
+          const pcv = datas?.[0]?.pcv;
           let fluctuationRate = 0;
-          if (rawRatio) {
-            fluctuationRate = parseFloat(rawRatio);
-            if (isFalling) {
-              fluctuationRate = -Math.abs(fluctuationRate);
-            } else if (isRising) {
-              fluctuationRate = Math.abs(fluctuationRate);
+          if (pcv) {
+            fluctuationRate = ((price - pcv) / pcv) * 100;
+          } else {
+            const cr = datas?.[0]?.cr;
+            if (cr) {
+              fluctuationRate = parseFloat(cr);
+              const rf = datas?.[0]?.rf;
+              if (rf === "4" || rf === "5") {
+                fluctuationRate = -Math.abs(fluctuationRate);
+              }
             }
           }
           return { price, fluctuationRate };
         }
       }
-      // Fallback: Yahoo Finance with .KS
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KS`;
-      const yahooRes = await fetch(yahooUrl);
-      if (yahooRes.ok) {
-        const yData = await yahooRes.json();
-        const price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        const prevClose = yData?.chart?.result?.[0]?.meta?.chartPreviousClose || yData?.chart?.result?.[0]?.meta?.previousClose;
+      // Fallback: Yahoo Finance with .KS or .KQ
+      let yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KS`;
+      let yahooRes = await fetch(yahooUrl);
+      let yData = yahooRes.ok ? await yahooRes.json() : null;
+      let price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      let prevClose = yData?.chart?.result?.[0]?.meta?.chartPreviousClose || yData?.chart?.result?.[0]?.meta?.previousClose;
+
+      if (!price) {
+        yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KQ`;
+        yahooRes = await fetch(yahooUrl);
+        if (yahooRes.ok) {
+          yData = await yahooRes.json();
+          price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+          prevClose = yData?.chart?.result?.[0]?.meta?.chartPreviousClose || yData?.chart?.result?.[0]?.meta?.previousClose;
+        }
+      }
+
+      if (price) {
         let fluctuationRate = 0;
-        if (price && prevClose) {
+        if (prevClose) {
           fluctuationRate = ((price - prevClose) / prevClose) * 100;
         }
-        if (price) return { price, fluctuationRate };
+        return { price, fluctuationRate };
       }
     } else {
       // US stock - Yahoo Finance Chart API
