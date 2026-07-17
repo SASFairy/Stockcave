@@ -75,6 +75,7 @@ export default function DashboardPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isManualMode, setIsManualMode] = useState(false);
   const [selectedStock, setSelectedStock] = useState<any | null>(null);
+  const [activeSearchIndex, setActiveSearchIndex] = useState<number>(-1);
 
   // Form states - Edit
   const [editingItem, setEditingItem] = useState<StockBalanceItem | null>(null);
@@ -98,6 +99,11 @@ export default function DashboardPage() {
     setIsManualMode(false);
     setAddError("");
   };
+
+  // Reset active search index on query or results changes
+  useEffect(() => {
+    setActiveSearchIndex(-1);
+  }, [searchQuery, searchResults]);
 
   // Debounced, abortable search effect for local stock cache
   useEffect(() => {
@@ -423,8 +429,31 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (searchResults.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSearchIndex((prev) => (prev + 1) % searchResults.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSearchIndex((prev) => (prev - 1 + searchResults.length) % searchResults.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const targetIndex = activeSearchIndex >= 0 ? activeSearchIndex : 0;
+      const targetStock = searchResults[targetIndex];
+      if (targetStock) {
+        setSelectedStock(targetStock);
+        setAddTicker(targetStock.symbol);
+        setAddStockName(targetStock.koreanName || targetStock.name);
+        setAddCurrency(targetStock.currency);
+        setSearchResults([]);
+      }
+    }
+  };
+
   const handleRefresh = async () => {
-    await loadAccounts();
+    await loadAccounts(true);
   };
 
   // ADD STOCK SUBMIT
@@ -957,6 +986,7 @@ export default function DashboardPage() {
                           placeholder="검색어 입력 (예: 삼성전자, 테슬라, AAPL, 005930)..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={handleSearchKeyDown}
                           className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-white border border-slate-200 text-slate-800 placeholder-slate-300 focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none transition-all font-semibold"
                         />
                         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
@@ -994,7 +1024,7 @@ export default function DashboardPage() {
                               </button>
                             </div>
                           )}
-                          {searchResults.map((stock) => (
+                          {searchResults.map((stock, index) => (
                             <button
                               key={stock.symbol}
                               type="button"
@@ -1005,7 +1035,11 @@ export default function DashboardPage() {
                                 setAddCurrency(stock.currency);
                                 setSearchResults([]);
                               }}
-                              className="w-full text-left p-3 text-xs hover:bg-slate-50 rounded-xl transition-colors flex items-center justify-between group cursor-pointer"
+                              className={`w-full text-left p-3 text-xs rounded-xl transition-all flex items-center justify-between group cursor-pointer ${
+                                index === activeSearchIndex
+                                  ? "bg-indigo-50/50 border border-indigo-100 text-indigo-600"
+                                  : "hover:bg-slate-50 text-slate-700 border border-transparent"
+                              }`}
                             >
                               <div className="flex flex-col gap-0.5 max-w-[240px]">
                                 <span className="font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">
