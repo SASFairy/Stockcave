@@ -838,13 +838,8 @@ export default function DashboardPage() {
           ========================================================================= */}
       <main className="flex-1 space-y-6 relative z-10 min-w-0">
         {/* Sticky-like Info & Status Bar */}
-        <header className="p-5 rounded-2xl glass-panel flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
-              {activeMemberName && `${activeMemberName}의 `}보유 주식 실시간 잔고
-            </h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3.5 self-end sm:self-auto">
+        <header className="p-5 rounded-2xl glass-panel flex items-center justify-end gap-4">
+          <div className="flex flex-wrap items-center gap-3.5">
             {/* Edit Mode Toggle Switch (Relocated to Right Main Header next to view toggle) */}
             <button
               type="button"

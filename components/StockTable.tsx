@@ -267,6 +267,21 @@ export default function StockTable({
 
   return (
     <div className="space-y-4">
+      {isEditMode && onAdd && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 text-xs"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            새로운 종목 추가
+          </button>
+        </div>
+      )}
+
       <div className={`w-full rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md scrollbar-thin shadow-sm ${
         dragState ? "overflow-visible relative z-30" : "overflow-x-auto"
       }`}>
@@ -490,20 +505,6 @@ export default function StockTable({
         </table>
       </div>
 
-      {isEditMode && onAdd && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onAdd}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 text-xs"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            새로운 종목 추가
-          </button>
-        </div>
-      )}
     </div>
   );
 }
