@@ -13,6 +13,15 @@ interface StockTableProps {
   storageKey?: string; // 💾 Key to isolate drag-and-drop order in localStorage
 }
 
+interface DragState {
+  fromIndex: number;
+  startY: number;
+  offsetY: number;
+  heights: number[];
+  isLanding?: boolean; // 🛫 True during the final landing slide animation
+  targetIndex?: number; // 🔒 Store target index once mouse is released to lock surrounding slide states
+}
+
 export default function StockTable({
   balances,
   isLoading = false,
@@ -28,10 +37,11 @@ export default function StockTable({
     direction: "asc" | "desc" | null;
   }>({ key: null, direction: null });
 
-  // Custom Drag-and-drop Order States
+  // Custom Ticker Ordering States
   const [tickerOrder, setTickerOrder] = useState<string[]>([]);
-  const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
-  const [dragOverTicker, setDragOverTicker] = useState<string | null>(null);
+  
+  // Custom Smooth Fluid Dragging States
+  const [dragState, setDragState] = useState<DragState | null>(null);
 
   // Sync custom ticker order with localStorage whenever storageKey shifts
   useEffect(() => {
@@ -50,6 +60,88 @@ export default function StockTable({
       setTickerOrder([]);
     }
   }, [storageKey]);
+
+  // Handle document-wide mousemove and mouseup during fluid custom drag
+  useEffect(() => {
+    if (!dragState || dragState.isLanding) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setDragState((prev) => {
+        if (!prev || prev.isLanding) return null;
+        return {
+          ...prev,
+          offsetY: e.clientY - prev.startY,
+        };
+      });
+    };
+
+    const handleMouseUp = () => {
+      setDragState((prev) => {
+        if (!prev || prev.isLanding) return null;
+
+        const { fromIndex, offsetY, heights } = prev;
+        const initialTops = getInitialTops(heights);
+        const centerDragged = initialTops[fromIndex] + heights[fromIndex] / 2 + offsetY;
+
+        // Calculate final target index based on original center + translation offset
+        let targetIndex = fromIndex;
+        for (let i = 0; i < heights.length; i++) {
+          if (i === fromIndex) continue;
+          const centerI = initialTops[i] + heights[i] / 2;
+
+          if (i > fromIndex && centerDragged > centerI) {
+            if (i > targetIndex) {
+              targetIndex = i;
+            }
+          } else if (i < fromIndex && centerDragged < centerI) {
+            if (i < targetIndex) {
+              targetIndex = i;
+            }
+          }
+        }
+
+        const targetOffsetY = initialTops[targetIndex] - initialTops[fromIndex];
+
+        // 🎬 Trigger the 200ms smooth landing slide transition instead of instant teleportation!
+        setTimeout(() => {
+          if (targetIndex !== fromIndex) {
+            const sortedBalances = getSortedBalances();
+            const currentTickers = sortedBalances.map((b) => b.ticker);
+
+            const fromTicker = currentTickers[fromIndex];
+            const newTickers = [...currentTickers];
+            newTickers.splice(fromIndex, 1);
+            newTickers.splice(targetIndex, 0, fromTicker);
+
+            setTickerOrder(newTickers);
+            if (storageKey) {
+              localStorage.setItem(`stock_order_${storageKey}`, JSON.stringify(newTickers));
+            }
+
+            // Switch sort status back to custom/drag-and-drop order immediately!
+            setSortConfig({ key: null, direction: null });
+          }
+
+          setDragState(null); // Fully terminate dragging state after slide finishes
+        }, 200);
+
+        return {
+          ...prev,
+          isLanding: true,
+          targetIndex, // 🔒 Lock in the target index to prevent surrounding list jittering during slide transition
+          offsetY: targetOffsetY, // Snap visual offset to the exact target slot coordinate
+        };
+      });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragState, balances, tickerOrder, storageKey]);
 
   if (isLoading) {
     return (
@@ -128,50 +220,41 @@ export default function StockTable({
     return items;
   };
 
-  // Drag and drop event handlers
-  const handleDragStart = (e: React.DragEvent, ticker: string) => {
-    setDraggedTicker(ticker);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent, ticker: string) => {
-    e.preventDefault();
-    if (ticker !== dragOverTicker) {
-      setDragOverTicker(ticker);
+  // Helper to compute cumulative tops for vertical row positions
+  const getInitialTops = (heights: number[]) => {
+    const tops: number[] = [];
+    let current = 0;
+    for (const h of heights) {
+      tops.push(current);
+      current += h;
     }
+    return tops;
   };
 
-  const handleDragEnd = () => {
-    setDraggedTicker(null);
-    setDragOverTicker(null);
-  };
+  // Start fluid drag reordering on MouseDown (unless clicking on interactive buttons)
+  const handleMouseDown = (e: React.MouseEvent<HTMLTableRowElement>, index: number) => {
+    // Block dragging when in active landing transition to avoid race condition state overrides
+    if (dragState) return;
 
-  const handleDrop = (e: React.DragEvent, targetTicker: string) => {
-    e.preventDefault();
-    const currentDragged = draggedTicker;
-    handleDragEnd();
-
-    if (!currentDragged || currentDragged === targetTicker) return;
-
-    const sortedBalances = getSortedBalances();
-    const currentTickers = sortedBalances.map((b) => b.ticker);
-
-    const fromIndex = currentTickers.indexOf(currentDragged);
-    const toIndex = currentTickers.indexOf(targetTicker);
-
-    if (fromIndex === -1 || toIndex === -1) return;
-
-    const newTickers = [...currentTickers];
-    newTickers.splice(fromIndex, 1);
-    newTickers.splice(toIndex, 0, currentDragged);
-
-    setTickerOrder(newTickers);
-    if (storageKey) {
-      localStorage.setItem(`stock_order_${storageKey}`, JSON.stringify(newTickers));
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("svg") || target.closest("a") || target.closest("input")) {
+      return;
     }
 
-    // Switch sort status back to custom/drag-and-drop order immediately!
-    setSortConfig({ key: null, direction: null });
+    // Disable system-level text selections during custom mouse drag
+    e.preventDefault();
+
+    const tr = e.currentTarget;
+    const tbody = tr.parentNode as HTMLTableSectionElement;
+    const rows = Array.from(tbody.querySelectorAll("tr")) as HTMLTableRowElement[];
+    const heights = rows.map((r) => r.offsetHeight);
+
+    setDragState({
+      fromIndex: index,
+      startY: e.clientY,
+      offsetY: 0,
+      heights,
+    });
   };
 
   const sortedBalancesList = getSortedBalances();
@@ -222,7 +305,7 @@ export default function StockTable({
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 relative">
             {sortedBalancesList.length === 0 ? (
               <tr>
                 <td
@@ -233,7 +316,7 @@ export default function StockTable({
                 </td>
               </tr>
             ) : (
-              sortedBalancesList.map((item) => {
+              sortedBalancesList.map((item, index) => {
                 const valuation = item.quantity * item.currentPrice;
 
                 // Calculate real-time absolute change and fluctuation rate from previousClose
@@ -249,23 +332,65 @@ export default function StockTable({
                   return Math.round(absChange).toLocaleString();
                 };
 
-                const isDragged = item.ticker === draggedTicker;
-                const isDragOver = item.ticker === dragOverTicker && !isDragged;
+                // Dynamic calculations for smooth translation offsets
+                let trStyle: React.CSSProperties = {};
+                let isDraggingThis = false;
+
+                if (dragState) {
+                  const { fromIndex, offsetY, heights, isLanding, targetIndex } = dragState;
+
+                  if (index === fromIndex) {
+                    isDraggingThis = true;
+                    trStyle = {
+                      transform: `translateY(${offsetY}px)`,
+                      position: "relative",
+                      zIndex: 50,
+                      pointerEvents: "none",
+                      // 🎬 Apply luxurious cubic-bezier slide transitions during landing phase, none during raw cursor tracking
+                      transition: isLanding
+                        ? "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)"
+                        : "none",
+                    };
+                  } else {
+                    let slideY = 0;
+
+                    if (isLanding && targetIndex !== undefined) {
+                      // 🔒 Lock surrounding rows' slide positions based on final targetIndex during the landing slide transition!
+                      // This completely prevents surrounding items from jittering or trying to slide back mid-transition!
+                      if (index > fromIndex && index <= targetIndex) {
+                        slideY = -heights[fromIndex];
+                      } else if (index < fromIndex && index >= targetIndex) {
+                        slideY = heights[fromIndex];
+                      }
+                    } else {
+                      // Dynamic calculations during active mouse dragging
+                      const initialTops = getInitialTops(heights);
+                      const centerDragged = initialTops[fromIndex] + heights[fromIndex] / 2 + offsetY;
+                      const centerI = initialTops[index] + heights[index] / 2;
+
+                      if (index > fromIndex && centerDragged > centerI) {
+                        slideY = -heights[fromIndex];
+                      } else if (index < fromIndex && centerDragged < centerI) {
+                        slideY = heights[fromIndex];
+                      }
+                    }
+
+                    trStyle = {
+                      transform: `translateY(${slideY}px)`,
+                      transition: "transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)", // Premium fluid physical slide duration
+                    };
+                  }
+                }
 
                 return (
                   <tr
                     key={item.ticker}
-                    draggable={true}
-                    onDragStart={(e) => handleDragStart(e, item.ticker)}
-                    onDragOver={(e) => handleDragOver(e, item.ticker)}
-                    onDragEnd={handleDragEnd}
-                    onDrop={(e) => handleDrop(e, item.ticker)}
-                    className={`transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${
-                      isDragged
-                        ? "opacity-40 bg-indigo-50/30 scale-[0.98] ring-1 ring-indigo-100"
-                        : isDragOver
-                          ? "bg-indigo-50/20 border-y border-indigo-100/50"
-                          : "hover:bg-white/40"
+                    onMouseDown={(e) => handleMouseDown(e, index)}
+                    style={trStyle}
+                    className={`transition-colors duration-200 select-none ${
+                      isDraggingThis
+                        ? "backdrop-blur-lg bg-white/60 ring-[1px] ring-indigo-100 shadow-lg rounded-xl scale-[1.01] cursor-grabbing"
+                        : "hover:bg-white/40 cursor-grab active:cursor-grabbing"
                     }`}
                   >
                     {/* Stock Name & Ticker */}
