@@ -31,3 +31,6 @@ prisma/*.db*
 # 6. 맥/윈도우 시스템 임시 파일
 Thumbs.db
 .DS_Store
+
+# 7. 배포 자동화 셸 스크립트 (도커 컨테이너 빌드 컨텍스트 제외)
+deploy.sh
