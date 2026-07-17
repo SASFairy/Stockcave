@@ -889,7 +889,7 @@ export default function DashboardPage() {
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                통합 포트폴리오
+                종합 포트폴리오
               </button>
             </div>
             {displaySyncTime && (
@@ -943,7 +943,7 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex items-center justify-between h-8">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">전체 통합 자산 현황</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">전체 자산 현황</h2>
             </div>
             
             {/* Consolidated Master Card - Identical Layout & Style to Brokerage Cards */}
@@ -954,7 +954,7 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 tracking-wider uppercase">
-                        통합 자산
+                        종합 자산
                       </span>
                       <h3 className="text-sm font-bold text-slate-800 tracking-wide">
                         전체 포트폴리오
@@ -1027,7 +1027,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between h-8">
             <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
-              {viewMode === "consolidated" ? "통합 보유 종목 포트폴리오" : "보유 종목 잔고"}
+              {viewMode === "consolidated" ? "보유 종목 포트폴리오" : "보유 종목 잔고"}
             </h2>
           </div>
           <StockTable
