@@ -221,12 +221,40 @@ export default function AssetAllocationChart({
         cx={cx}
         cy={cy}
         innerRadius={0}
-        outerRadius={outerRadius + 6} // Tactile floating expansion
+        outerRadius={outerRadius + 8} // Increased from +6 to +8 for a more pronounced float!
         startAngle={startAngle}
         endAngle={endAngle}
         fill={fill}
         cornerRadius={4}
       />
+    );
+  };
+
+  // Custom label renderer to draw bold white percentage text inside major pie slices (>= 3.0% weight)
+  const renderCustomizedLabel = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
+    const percentageValue = percent * 100;
+    
+    // Only display label if there is sufficient visual space inside the slice (>= 3.0%)
+    if (percentageValue < 3.0) return null;
+
+    const RADIAN = Math.PI / 180;
+    // Center the label perfectly inside the solid mass of each slice
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="text-[10px] font-black pointer-events-none"
+      >
+        {`${percentageValue.toFixed(0)}%`}
+      </text>
     );
   };
 
@@ -272,6 +300,8 @@ export default function AssetAllocationChart({
                     <stop offset="100%" stopColor="#cbd5e1" />
                   </linearGradient>
                 </defs>
+
+                {/* Pie 1: Slices and Interactive Hover Expansion */}
                 <Pie
                   data={chartData}
                   cx="50%"
@@ -302,6 +332,23 @@ export default function AssetAllocationChart({
                     />
                   ))}
                 </Pie>
+
+                {/* Pie 2: 100% Transparent Label Overlay (Bypasses Recharts activeIndex label-suppression bug) */}
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={0}
+                  outerRadius={115}
+                  paddingAngle={2}
+                  dataKey="value"
+                  nameKey="name"
+                  stroke="transparent"
+                  fill="transparent"
+                  labelLine={false}
+                  label={renderCustomizedLabel}
+                  style={{ pointerEvents: "none" }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
