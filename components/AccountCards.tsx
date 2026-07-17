@@ -180,7 +180,7 @@ export default function AccountCards({
               <div className="mb-4 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 tracking-wider uppercase">
+                    <span className="text-[10px] font-extrabold text-indigo-600 tracking-wider uppercase">
                       {account.broker}
                     </span>
                     <h3 className="text-sm font-bold text-slate-800 tracking-wide">

@@ -958,15 +958,11 @@ export default function DashboardPage() {
                   {/* Header equivalent */}
                   <div className="mb-4 flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 tracking-wider uppercase">
-                          종합 자산
-                        </span>
+                      <div className="flex items-center mb-1">
                         <h3 className="text-sm font-bold text-slate-800 tracking-wide">
                           전체 포트폴리오
                         </h3>
                       </div>
-                      <p className="text-xs text-slate-500 font-bold">모든 계좌 합산 현황</p>
                     </div>
                   </div>
 
