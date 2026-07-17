@@ -10,7 +10,7 @@ export interface StockBalanceItem {
   avgBuyPrice: number;
   currentPrice: number;
   currency: string;
-  fluctuationRate?: number; // 📈 Live daily price change percentage
+  previousClose?: number; // 📈 Live daily previous close value
 }
 
 export interface AccountItem {

@@ -65,6 +65,19 @@ export default function StockTable({
               balances.map((item) => {
                 const valuation = item.quantity * item.currentPrice;
 
+                // Calculate real-time absolute change and fluctuation rate from previousClose
+                const previousClose = item.previousClose || item.currentPrice;
+                const absoluteChange = item.currentPrice - previousClose;
+                const fluctuationRate = previousClose !== 0 ? (absoluteChange / previousClose) * 100 : 0;
+
+                const formatAbsoluteChange = (change: number, currency: string) => {
+                  const absChange = Math.abs(change);
+                  if (currency === "USD") {
+                    return absChange.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  }
+                  return Math.round(absChange).toLocaleString();
+                };
+
                 return (
                   <tr
                     key={item.ticker}
@@ -93,19 +106,22 @@ export default function StockTable({
                       <div className="font-extrabold text-slate-800">
                         {formatCurrency(item.currentPrice, item.currency)}
                       </div>
-                      {item.fluctuationRate !== undefined && item.fluctuationRate !== null && item.fluctuationRate !== 0 && (
-                        <div className={`text-[10px] font-bold mt-0.5 flex items-center justify-end gap-0.5 ${
-                          item.fluctuationRate > 0
+                      {fluctuationRate !== 0 && (
+                        <div className={`text-[10px] font-bold mt-0.5 flex items-center justify-end gap-1 ${
+                          fluctuationRate > 0
                             ? "text-rose-500"
-                            : item.fluctuationRate < 0
+                            : fluctuationRate < 0
                               ? "text-blue-500"
                               : "text-slate-500"
                         }`}>
                           <span>
-                            {item.fluctuationRate > 0 ? "▲" : item.fluctuationRate < 0 ? "▼" : ""}
+                            {fluctuationRate > 0 ? "▲" : fluctuationRate < 0 ? "▼" : ""}
                           </span>
                           <span>
-                            {Math.abs(item.fluctuationRate).toFixed(2)}%
+                            {formatAbsoluteChange(absoluteChange, item.currency)}
+                          </span>
+                          <span className="ml-0.5 opacity-90">
+                            ({fluctuationRate > 0 ? "+" : ""}{fluctuationRate.toFixed(2)}%)
                           </span>
                         </div>
                       )}
