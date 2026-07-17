@@ -15,7 +15,9 @@ interface StockTableProps {
 
 interface DragState {
   fromIndex: number;
+  startX: number; // 👈 Captured initial X coordinate of the cursor
   startY: number;
+  offsetX: number; // 👈 Real-time X-axis drift offset
   offsetY: number;
   heights: number[];
   isLanding?: boolean; // 🛫 True during the final landing slide animation
@@ -70,6 +72,7 @@ export default function StockTable({
         if (!prev || prev.isLanding) return null;
         return {
           ...prev,
+          offsetX: e.clientX - prev.startX, // 👈 Calculate horizontal free drift drift!
           offsetY: e.clientY - prev.startY,
         };
       });
@@ -129,6 +132,7 @@ export default function StockTable({
           ...prev,
           isLanding: true,
           targetIndex, // 🔒 Lock in the target index to prevent surrounding list jittering during slide transition
+          offsetX: 0, // 🧲 Gently magnetize horizontal drift back to perfectly centered 0!
           offsetY: targetOffsetY, // Snap visual offset to the exact target slot coordinate
         };
       });
@@ -251,7 +255,9 @@ export default function StockTable({
 
     setDragState({
       fromIndex: index,
+      startX: e.clientX, // 👈 Capture initial X coordinate
       startY: e.clientY,
+      offsetX: 0, // 👈 Start with 0 horizontal drift
       offsetY: 0,
       heights,
     });
@@ -261,7 +267,9 @@ export default function StockTable({
 
   return (
     <div className="space-y-4">
-      <div className="w-full overflow-x-auto rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md scrollbar-thin shadow-sm">
+      <div className={`w-full rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md scrollbar-thin shadow-sm ${
+        dragState ? "overflow-visible relative z-30" : "overflow-x-auto"
+      }`}>
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
@@ -337,12 +345,12 @@ export default function StockTable({
                 let isDraggingThis = false;
 
                 if (dragState) {
-                  const { fromIndex, offsetY, heights, isLanding, targetIndex } = dragState;
+                  const { fromIndex, offsetX, offsetY, heights, isLanding, targetIndex } = dragState;
 
                   if (index === fromIndex) {
                     isDraggingThis = true;
                     trStyle = {
-                      transform: `translateY(${offsetY}px)`,
+                      transform: `translate(${offsetX}px, ${offsetY}px)`, // 👈 Fully unlocked 2D translate!
                       position: "relative",
                       zIndex: 50,
                       pointerEvents: "none",
