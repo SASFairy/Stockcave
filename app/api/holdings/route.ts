@@ -20,19 +20,27 @@ async function fetchPublicPrice(ticker: string, currency: string): Promise<numbe
       if (res.ok) {
         const data = await res.json();
         const datas = data?.result?.areas?.[0]?.datas || data?.datas;
-        const rawPrice = datas?.[0]?.closePrice;
-        if (rawPrice) {
-          return parseFloat(rawPrice.replace(/,/g, ""));
+        const rawPrice = datas?.[0]?.nv;
+        if (rawPrice !== undefined && rawPrice !== null) {
+          return typeof rawPrice === "number" ? rawPrice : parseFloat(rawPrice.toString().replace(/,/g, ""));
         }
       }
-      // Fallback: Yahoo Finance with .KS suffix
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KS`;
-      const yahooRes = await fetch(yahooUrl);
-      if (yahooRes.ok) {
-        const yData = await yahooRes.json();
-        const price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (price) return price;
+      // Fallback: Yahoo Finance with .KS or .KQ
+      let yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KS`;
+      let yahooRes = await fetch(yahooUrl);
+      let yData = yahooRes.ok ? await yahooRes.json() : null;
+      let price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+
+      if (!price) {
+        yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}.KQ`;
+        yahooRes = await fetch(yahooUrl);
+        if (yahooRes.ok) {
+          yData = await yahooRes.json();
+          price = yData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        }
       }
+
+      if (price) return price;
     } else {
       // US stock - Yahoo Finance Chart API
       const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}`;
@@ -87,8 +95,10 @@ export async function POST(request: Request) {
       }
     });
 
-    // Recalculate holder count of modified stock
-    await updateAllHolderCounts();
+    // Recalculate holder count of modified stock asynchronously in the background
+    updateAllHolderCounts().catch((err) =>
+      console.error("🔄 [Background StockMaster Sync Error] Failed to update holder counts:", err)
+    );
 
     return NextResponse.json({ success: true, balance });
   } catch (error) {
@@ -139,8 +149,10 @@ export async function DELETE(request: Request) {
       where: { id: parseInt(idStr, 10) }
     });
 
-    // Recalculate holder count of modified stock
-    await updateAllHolderCounts();
+    // Recalculate holder count of modified stock asynchronously in the background
+    updateAllHolderCounts().catch((err) =>
+      console.error("🔄 [Background StockMaster Sync Error] Failed to update holder counts:", err)
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

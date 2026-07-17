@@ -276,7 +276,7 @@ export default function DashboardPage() {
         if (activeAccountId === accountId) {
           setActiveAccountId(null);
         }
-        await loadAccounts();
+        await loadAccounts(true);
       } else {
         alert(data.error || "계좌 삭제 중 오류가 발생했습니다.");
       }
@@ -292,9 +292,11 @@ export default function DashboardPage() {
     loadAccounts();
   }, [activeMemberId]);
 
-  async function loadAccounts() {
+  async function loadAccounts(isSilent = false) {
     if (activeMemberId === null) return;
-    setAccountsLoading(true);
+    if (!isSilent && accounts.length === 0) {
+      setAccountsLoading(true);
+    }
     setSyncing(true);
     try {
       const response = await fetch(`/api/stock?memberId=${activeMemberId}`);
@@ -370,7 +372,7 @@ export default function DashboardPage() {
       const data = await response.json();
       if (data.success) {
         setIsCashModalOpen(false);
-        await loadAccounts();
+        await loadAccounts(true);
       } else {
         setCashError(data.error || "예수금 업데이트에 실패했습니다.");
       }
@@ -456,8 +458,8 @@ export default function DashboardPage() {
       if (data.success) {
         resetAddForm();
         setIsAddModalOpen(false);
-        // Refresh account balances
-        await loadAccounts();
+        // Refresh account balances silently
+        await loadAccounts(true);
       } else {
         setAddError(data.error || "종목 추가 실패");
       }
@@ -489,7 +491,7 @@ export default function DashboardPage() {
       if (data.success) {
         setIsEditModalOpen(false);
         setEditingItem(null);
-        await loadAccounts();
+        await loadAccounts(true);
       } else {
         setEditError(data.error || "수정 실패");
       }
@@ -514,7 +516,7 @@ export default function DashboardPage() {
       if (data.success) {
         setIsDeleteModalOpen(false);
         setDeleteTargetId(null);
-        await loadAccounts();
+        await loadAccounts(true);
       }
     } catch (err) {
       console.error("Delete failed:", err);
