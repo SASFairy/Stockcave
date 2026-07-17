@@ -916,9 +916,8 @@ export default function DashboardPage() {
         {/* Account Cards / Consolidated Master Card */}
         {viewMode === "account" ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between h-8">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">증권 계좌 목록</h2>
-              {isAdminUnlocked && (
+            {isAdminUnlocked && (
+              <div className="flex items-center justify-end h-8">
                 <button
                   type="button"
                   onClick={() => setIsAddAccountModalOpen(true)}
@@ -936,8 +935,8 @@ export default function DashboardPage() {
                   </svg>
                   계좌 추가
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             <AccountCards
               accounts={accounts}
               activeAccountId={activeAccountId}
@@ -952,10 +951,6 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center justify-between h-8">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">전체 자산 현황</h2>
-            </div>
-            
             <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full">
               {/* Consolidated Master Card - Identical Layout & Style to Brokerage Cards (Static, no click action) */}
               <div className="glass-card glass-card-static p-5 rounded-2xl relative transition-all duration-300 flex flex-col justify-between w-[320px] shrink-0 border-indigo-500/40 bg-white/70 shadow-[0_12px_30px_rgba(99,102,241,0.06)] ring-1 ring-indigo-500/20">
@@ -1045,11 +1040,6 @@ export default function DashboardPage() {
 
         {/* Stock Balances table segment */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between h-8">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">
-              {viewMode === "consolidated" ? "보유 종목 포트폴리오" : "보유 종목 잔고"}
-            </h2>
-          </div>
           <StockTable
             balances={viewMode === "consolidated" ? getConsolidatedBalances(accounts) : (activeAccount ? activeAccount.balances : [])}
             isLoading={accountsLoading}
